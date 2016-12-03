@@ -62,6 +62,8 @@ class Liara(commands.Bot):
 
     async def on_ready(self):
         self.lockdown = False
+        self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
+                       .format(self.user))
         print('Liara is connected!\nLogged in as {0}.'.format(self.user))
         if self.shard_id is not None:
             print('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
