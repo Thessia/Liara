@@ -63,6 +63,15 @@ class Core:
                         self.liara.unload_extension(cog)
                 # Prefix changing
                 self.liara.command_prefix = self.settings['prefixes']
+                # Setting owner
+                if 'owners' not in self.settings:
+                    self.settings['owners'] = []
+                try:
+                    if self.liara.owner.id not in self.settings['owners']:
+                        self.settings['owners'].append(self.liara.owner.id)
+                except AttributeError:
+                    pass
+                self.liara.owners = self.settings['owners']
             await asyncio.sleep(1)
 
     async def on_message(self, message):
@@ -126,6 +135,16 @@ class Core:
             await self.liara.say('Avatar changed.')
         except discord.errors.InvalidArgument:
             await self.liara.say('That image type is unsupported.')
+
+    @set_cmd.command()
+    @checks.is_owner()
+    async def owner(self, *owners: discord.User):
+        """Sets Liara's owners."""
+        self.settings['owners'] = [x.id for x in list(owners)]
+        if len(list(owners)) == 1:
+            await self.liara.say('Owner set.')
+        else:
+            await self.liara.say('Owners set.')
 
     @commands.command()
     @checks.is_owner()

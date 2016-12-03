@@ -4,7 +4,7 @@ import __main__
 
 
 def owner_check(ctx):
-    return ctx.message.author.id == __main__.liara.owner.id
+    return ctx.message.author.id in __main__.liara.owners
 
 
 def is_owner():
