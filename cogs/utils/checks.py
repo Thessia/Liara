@@ -3,17 +3,17 @@ from discord.ext import commands
 import __main__
 
 
-def is_owner_check(ctx):
+def owner_check(ctx):
     return ctx.message.author.id == __main__.liara.owner.id
 
 
 def is_owner():
-    return commands.check(is_owner_check)
+    return commands.check(owner_check)
 
 
 def mod_or_permissions(**permissions):
     def predicate(ctx):
-        if is_owner_check(ctx):
+        if owner_check(ctx):
             return True
         if ctx.message.channel.is_private:
             return False
@@ -38,7 +38,7 @@ def mod_or_permissions(**permissions):
 
 def admin_or_permissions(**permissions):
     def predicate(ctx):
-        if is_owner_check(ctx):
+        if owner_check(ctx):
             return True
         if ctx.message.channel.is_private:
             return False
@@ -61,7 +61,7 @@ def admin_or_permissions(**permissions):
 
 def serverowner_or_permissions(**permissions):
     def predicate(ctx):
-        if is_owner_check(ctx):
+        if owner_check(ctx):
             return True
         if ctx.message.channel.is_private:
             return False
