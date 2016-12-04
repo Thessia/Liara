@@ -12,8 +12,9 @@ import redis
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--description', type=str, help='modify the bot description shown in help',
-                    default='Liara, an open-source Discord bot written by Pandentia\nhttps://github.com/Pandentia')
+parser.add_argument('--description', type=str, help='modify the bot description shown in the help command',
+                    default='Liara, an open-source Discord bot written by Pandentia and contributors\n'
+                            'https://github.com/Thessia/Liara')
 parser.add_argument('--selfbot', type=bool, help='enables selfbot mode', default=False)
 parser.add_argument('token', type=str, help='sets the token')
 shard_grp = parser.add_argument_group('sharding')
