@@ -25,7 +25,7 @@ Of course, all these features come at a cost: Windows support.
 We have chosen not to support Windows users, because setting up Liara on Windows usually proves to be difficult. This doesn't mean it's impossible, but Liara's official support channel is only for Linux/UNIX support. You can, however, ask in the `#windows-support` channel in the aforementioned Discord server for Windows support.
 
 ### Sign-off for Twentysix
-Hi. If you're reading this, you might wonder why I set up this project. And no, it's not to spite you. To be honest, I have no quarrel with you. I'm far past that. All I wanted a better Red, and Red was slipping further and further away from my idea of a "fully modular bot", so I was faced with the difficult choice of having to put up with Red or make my own, and I chose the latter.
+Hi. If you're reading this, you might wonder why I set up this project. And no, it's not to spite you. To be honest, I have no quarrel with you. I'm far past that. All I wanted a better Red, and Red was slipping further and further away from my idea of a "fully modular bot". I was faced with the difficult choice of having to put up with Red or make my own, and I chose the latter.
 
 I hope you can respect my decision, and see why I chose to do this.
 
