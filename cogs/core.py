@@ -76,9 +76,13 @@ class Core:
 
     async def on_message(self, message):
         if not self.liara.lockdown:
-            if message.author.id == self.liara.owner.id or message.author == message.server.owner:
+            if message.author.id == self.liara.owner.id:
                 await self.liara.process_commands(message)
                 return
+            if message.server is not None:
+                if message.server.owner == message.author:
+                    await self.liara.process_commands(message)
+                    return
             await self.liara.process_commands(message)
 
     async def on_command_error(self, exception, context):
