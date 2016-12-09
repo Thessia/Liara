@@ -19,11 +19,16 @@ def mod_or_permissions(**permissions):
             return False
         if ctx.message.author == ctx.message.server.owner:
             return True
+        # let's get the roles and compare them to
+        # what we have on file (if we do)
+        roles = [x.name.lower() for x in ctx.message.author.roles]
         try:
-            roles = [x.name.lower() for x in ctx.message.author.roles]
-            if __main__.liara.settings['roles'][ctx.message.server.id]['mod_role'] in roles:
+            if __main__.liara.settings['roles'][ctx.message.server.id]['mod_role'].lower() in roles:
                 return True
-            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'] in roles:
+        except KeyError:
+            pass
+        try:
+            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass
@@ -46,7 +51,7 @@ def admin_or_permissions(**permissions):
             return True
         try:
             roles = [x.name.lower() for x in ctx.message.author.roles]
-            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'] in roles:
+            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass

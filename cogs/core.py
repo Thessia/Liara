@@ -43,12 +43,14 @@ class Core:
                         print('{0} could not be loaded. This message will not be shown again.'.format(cog))
         else:
             self.settings['cogs'] = ['cogs.core']
+        if 'roles' not in self.settings:
+            self.settings['roles'] = {}
         # noinspection PyAttributeOutsideInit
-        self.loop = self.liara.loop.create_task(self.maintenance_loop())
+        self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
     async def maintenance_loop(self):
         while True:
-            if not self.ignore_db:
+            if not self.ignore_db:  # if you wanna use something else for database management, just set this to false
                 # Loading cogs
                 for cog in self.settings['cogs']:
                     if cog not in list(self.liara.extensions):
@@ -76,7 +78,7 @@ class Core:
 
     async def on_message(self, message):
         if not self.liara.lockdown:
-            if message.author.id == self.liara.owner.id:
+            if message.author.id == self.liara.owner.id:  # *always* process owner and server owner commands
                 await self.liara.process_commands(message)
                 return
             if message.server is not None:
@@ -99,7 +101,7 @@ class Core:
             pass
 
     @commands.group(name='set', pass_context=True, invoke_without_command=True)
-    @checks.is_owner()
+    @checks.admin_or_permissions()
     async def set_cmd(self, ctx):
         """Sets Liara's settings."""
         await self.liara.send_cmd_help(ctx)
@@ -149,6 +151,42 @@ class Core:
             await self.liara.say('Owner set.')
         else:
             await self.liara.say('Owners set.')
+
+    @set_cmd.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions()
+    async def admin(self, ctx, role: str=None):
+        """Sets Liara's admin role.
+        Roles are non-case sensitive."""
+        server = ctx.message.server.id
+        if server not in self.settings['roles']:
+            self.settings['roles'][server] = {}
+        if role is not None:
+            self.settings['roles'][server]['admin_role'] = role
+            await self.liara.say('Admin role set to `{0}` successfully.'.format(role))
+        else:
+            if 'admin_role' in self.settings['roles'][server]:
+                self.settings['roles'][server].pop('admin_role')
+            await self.liara.say('Admin role cleared.\n'
+                                 'If you didn\'t intend to do this, use `{0}help set admin` for help.'
+                                 .format(ctx.prefix))
+
+    @set_cmd.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions()
+    async def moderator(self, ctx, role: str=None):
+        """Sets Liara's moderator role.
+        Roles are non-case sensitive."""
+        server = ctx.message.server.id
+        if server not in self.settings['roles']:
+            self.settings['roles'][server] = {}
+        if role is not None:
+            self.settings['roles'][server]['mod_role'] = role
+            await self.liara.say('Moderator role set to `{0}` successfully.'.format(role))
+        else:
+            if 'mod_role' in self.settings['roles'][server]:
+                self.settings['roles'][server].pop('mod_role')
+            await self.liara.say('Moderator role cleared.\n'
+                                 'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
+                                 .format(ctx.prefix))
 
     @commands.command()
     @checks.is_owner()
