@@ -22,7 +22,7 @@ class Shards:
         self.die = True
 
     def publish_loop_thread(self):
-        while not (self.die or self.liara.stopped):
+        while not self.die:
             self.redis.publish('shard.{0}'.format(self.liara.shard_id),
                                json.dumps({'servers': len(self.liara.servers),
                                            'members': len([x for x in self.liara.get_all_members()]),
@@ -33,7 +33,7 @@ class Shards:
         pubsub = self.redis.pubsub()
         pubsub.psubscribe('shard.*')
         for i in pubsub.listen():
-            if self.die or self.liara.stopped:
+            if self.die:
                 pubsub.close()
                 return
             if i['type'] == 'pmessage':

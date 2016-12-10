@@ -49,7 +49,6 @@ class Liara(commands.Bot):
         self.boot_time = time.time()  # for uptime tracking, we'll use this later
         print('Liara is booting, please wait...')
         self.redis = redis.StrictRedis(host=args.host, port=args.port, db=args.db, password=args.password)
-        self.stopped = False
         self.lockdown = True  # so we don't process any messages before on_ready
         self.settings = dataIO.load_json('settings')
         self.owner = None  # this gets updated in on_ready
@@ -84,7 +83,6 @@ class Liara(commands.Bot):
         await send_cmd_help(ctx)
 
     async def logout(self):
-        self.stopped = True
         await super().logout()
 
 

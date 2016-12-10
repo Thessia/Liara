@@ -193,7 +193,6 @@ class Core:
     async def halt(self):
         """Shuts Liara down."""
         await self.liara.say(':wave:')
-        self.liara.stopped = True
         await self.liara.logout()
 
     @commands.command()
