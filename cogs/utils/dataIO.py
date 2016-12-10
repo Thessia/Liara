@@ -1,6 +1,8 @@
 import redis_collections
 import threading
 import time
+import __main__
+
 
 class RedisDict(redis_collections.Dict):
     def __init__(self, **kwargs):
