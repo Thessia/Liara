@@ -188,9 +188,9 @@ class Core:
                                  'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
                                  .format(ctx.prefix))
 
-    @commands.command()
+    @commands.command(aliases=['shutdown'])
     @checks.is_owner()
-    async def shutdown(self):
+    async def halt(self):
         """Shuts Liara down."""
         await self.liara.say(':wave:')
         self.liara.stopped = True
