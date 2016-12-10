@@ -8,7 +8,7 @@ class RedisDict(redis_collections.Dict):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.die = False
-        self.thread = threading.Thread(target=self.update_loop)
+        self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
         self.prev = None
 
