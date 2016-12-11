@@ -18,11 +18,14 @@ Liara is a direct competitor to [Twentysix26's Red](https://github.com/Twentysix
 ### Join our Discord server!
 [![Discord](https://discordapp.com/api/guilds/247754180763189258/widget.png?style=banner3)](https://discord.gg/JRJjMTy)
 
-This is where you can ask for help setting Liara up, and we try to keep a friendly community.
+This is where you can ask for help setting Liara up, and we try to keep a friendly community. You can also discuss writing cogs for Liara.
 
 ### Final words
 Of course, all these features come at a cost: Windows support.
 We have chosen not to support Windows users, because setting up Liara on Windows usually proves to be difficult. This doesn't mean it's impossible, but Liara's official support channel is only for Linux/UNIX support. You can, however, ask in the `#windows-support` channel in the aforementioned Discord server for Windows support.
+
+### Disclaimer
+Liara is still in very active development, so things might change at any time without prior notice.
 
 ### Sign-off for Twentysix
 Hi. If you're reading this, you might wonder why I set up this project. And no, it's not to spite you. To be honest, I have no quarrel with you. I'm far past that. All I wanted a better Red, and Red was slipping further and further away from my idea of a "fully modular bot". I was faced with the difficult choice of having to put up with Red or make my own, and I chose the latter.
