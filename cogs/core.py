@@ -207,8 +207,6 @@ class Core:
                 self.liara.load_extension(cog.__name__)
                 self.settings['cogs'].append(cog_name)
                 await self.liara.say('`{0}` loaded successfully.'.format(name))
-            except ImportError:
-                await self.liara.say('Unable to load; that cog doesn\'t exist.')
             except Exception as e:
                 _traceback = traceback.format_tb(e.__traceback__)
                 _traceback = ''.join(_traceback[2:])
