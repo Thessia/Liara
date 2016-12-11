@@ -34,9 +34,10 @@ def mod_or_permissions(**permissions):
             pass
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:
-            allowed = user_permissions.get(permission, default=False)
-            if allowed:
-                return True
+            if permissions[permission]:
+                allowed = user_permissions.get(permission, default=False)
+                if allowed:
+                    return True
         return False
     return commands.check(predicate)
 
@@ -57,9 +58,10 @@ def admin_or_permissions(**permissions):
             pass
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:
-            allowed = user_permissions.get(permission, default=False)
-            if allowed:
-                return True
+            if permissions[permission]:
+                allowed = user_permissions.get(permission, default=False)
+                if allowed:
+                    return True
         return False
     return commands.check(predicate)
 
