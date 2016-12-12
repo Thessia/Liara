@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--description', type=str, help='modify the bot description shown in the help command',
                     default='Liara, an open-source Discord bot written by Pandentia and contributors\n'
                             'https://github.com/Thessia/Liara')
-parser.add_argument('--selfbot', type=bool, help='enables selfbot mode', action='store_true')
+parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
 parser.add_argument('token', type=str, help='sets the token')
 shard_grp = parser.add_argument_group('sharding')
 shard_grp.add_argument('--shard_id', type=int, help='the shard ID the bot should run on')
