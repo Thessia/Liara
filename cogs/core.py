@@ -45,6 +45,8 @@ class Core:
             self.settings['cogs'] = ['cogs.core']
         if 'roles' not in self.settings:
             self.settings['roles'] = {}
+        if 'ignores' not in self.settings:
+            self.settings['ignores'] = {}
         # noinspection PyAttributeOutsideInit
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
@@ -78,12 +80,24 @@ class Core:
 
     async def on_message(self, message):
         if not self.liara.lockdown:
-            if message.author.id == self.liara.owner.id:  # *always* process owner and server owner commands
+            if message.author.id in self.liara.owners:  # *always* process owner and server owner commands
                 await self.liara.process_commands(message)
                 return
             if message.server is not None:
                 if message.server.owner == message.author:
                     await self.liara.process_commands(message)
+                    return
+            try:
+                roles = [x.name.lower() for x in message.author.roles]
+                if self.liara.settings['roles'][message.server.id]['admin_role'].lower() in roles:
+                    await self.liara.process_commands(message)
+                    return
+            except KeyError:
+                pass
+            if message.server.id in self.settings['ignores']:
+                if self.settings['ignores'][message.server.id]['server_ignore']:
+                    return
+                if message.channel.id in self.settings['ignores'][message.server.id]['ignored_channels']:
                     return
             await self.liara.process_commands(message)
 
@@ -187,6 +201,33 @@ class Core:
             await self.liara.say('Moderator role cleared.\n'
                                  'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
                                  .format(ctx.prefix))
+
+    def _ignore_check(self, ctx):
+        server = ctx.message.server.id
+        if server not in self.settings['ignores']:
+            self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
+
+    @set_cmd.group(name='ignore', pass_context=True, invoke_without_command=True)
+    @checks.admin_or_permissions()
+    async def ignore_cmd(self, ctx):
+        """Helps you ignore/unignore servers/channels."""
+        await self.liara.send_cmd_help(ctx)
+
+    @ignore_cmd.command(pass_context=True)
+    @checks.admin_or_permissions()
+    async def channel(self, ctx, state: bool):
+        """Ignores/unignores the current channel."""
+        self._ignore_check(ctx)
+        channel = ctx.message.channel.id
+        server = ctx.message.server.id
+        if state:
+            if channel not in self.settings['ignores'][server]['ignored_channels']:
+                self.settings['ignores'][server]['ignored_channels'].append(channel)
+            await self.liara.say('Channel ignored.')
+        else:
+            if channel in self.settings['ignores'][server]['ignored_channels']:
+                self.settings['ignores'][server]['ignored_channels'].remove(channel)
+            await self.liara.say('Channel unignored.')
 
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
