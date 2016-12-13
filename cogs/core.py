@@ -229,6 +229,18 @@ class Core:
                 self.settings['ignores'][server]['ignored_channels'].remove(channel)
             await self.liara.say('Channel unignored.')
 
+    @ignore_cmd.command(pass_context=True)
+    @checks.admin_or_permissions()
+    async def server(self, ctx, state: bool):
+        self._ignore_check(ctx)
+        server = ctx.message.server.id
+        if state:
+            self.settings['ignores'][server]['server_ignore'] = True
+            await self.liara.say('Server ignored.')
+        else:
+            self.settings['ignores'][server]['server_ignore'] = False
+            await self.liara.say('Server unignored.')
+
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
     async def halt(self):
