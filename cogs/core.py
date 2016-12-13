@@ -92,7 +92,7 @@ class Core:
                     if self.liara.settings['roles'][message.server.id]['admin_role'].lower() in roles:
                         await self.liara.process_commands(message)
                         return
-                except KeyError:
+                except KeyError or AttributeError:
                     pass
                 if message.server.id in self.settings['ignores']:
                     if self.settings['ignores'][message.server.id]['server_ignore']:
