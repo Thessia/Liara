@@ -87,18 +87,18 @@ class Core:
                 if message.server.owner == message.author:
                     await self.liara.process_commands(message)
                     return
-            try:
-                roles = [x.name.lower() for x in message.author.roles]
-                if self.liara.settings['roles'][message.server.id]['admin_role'].lower() in roles:
-                    await self.liara.process_commands(message)
-                    return
-            except KeyError:
-                pass
-            if message.server.id in self.settings['ignores']:
-                if self.settings['ignores'][message.server.id]['server_ignore']:
-                    return
-                if message.channel.id in self.settings['ignores'][message.server.id]['ignored_channels']:
-                    return
+                try:
+                    roles = [x.name.lower() for x in message.author.roles]
+                    if self.liara.settings['roles'][message.server.id]['admin_role'].lower() in roles:
+                        await self.liara.process_commands(message)
+                        return
+                except KeyError:
+                    pass
+                if message.server.id in self.settings['ignores']:
+                    if self.settings['ignores'][message.server.id]['server_ignore']:
+                        return
+                    if message.channel.id in self.settings['ignores'][message.server.id]['ignored_channels']:
+                        return
             await self.liara.process_commands(message)
 
     async def on_command_error(self, exception, context):
