@@ -11,6 +11,7 @@ import aiohttp
 import discord.errors
 import asyncio
 import random
+import json
 
 
 class Core:
@@ -77,6 +78,12 @@ class Core:
                     pass
                 self.liara.owners = self.settings['owners']
             await asyncio.sleep(1)
+
+    async def create_gist(self, content, filename='output.py'):
+        github_file = {'files': {filename: {'content': str(content)}}}
+        async with aiohttp.ClientSession() as session:
+            async with session.post('https://api.github.com/gists', data=json.dumps(github_file)) as response:
+                return await response.json()
 
     async def on_message(self, message):
         if not self.liara.lockdown:
@@ -314,7 +321,12 @@ class Core:
         if inspect.isawaitable(output):
             output = await output
 
-        await self.liara.say('```py\n{0}\n```'.format(output))
+        try:
+            await self.liara.say('```py\n{0}\n```'.format(output))
+        except discord.HTTPException:
+            gist = await self.create_gist(output)
+            await self.liara.say('Sorry, that output was too large, so I uploaded it to gist instead.\n'
+                                 '{0}'.format(gist['html_url']))
 
 
 def setup(liara):
