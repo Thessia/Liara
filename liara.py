@@ -82,9 +82,6 @@ class Liara(commands.Bot):
     async def send_cmd_help(ctx):
         await send_cmd_help(ctx)
 
-    async def logout(self):
-        await super().logout()
-
 
 async def send_cmd_help(ctx):
     if ctx.invoked_subcommand:
