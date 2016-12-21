@@ -29,6 +29,7 @@ class Core:
         """Power-on self test. Beep boop."""
         if 'prefixes' in self.settings:
             self.liara.command_prefix = self.settings['prefixes']
+            print('Liara\'s prefixes are: ' + ', '.join(self.liara.command_prefix))
         else:
             prefix = random.randint(1, 2**8)
             self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
