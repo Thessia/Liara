@@ -311,6 +311,7 @@ class Core:
     @commands.command(pass_context=True, hidden=True, aliases=['debug'])
     @checks.is_owner()
     async def eval(self, ctx, *, code: str):
+        """Evaluates Python code."""
         message = ctx.message
         author = ctx.message.author
         channel = ctx.message.channel
