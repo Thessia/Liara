@@ -24,6 +24,34 @@ class Useful:
                              'You\'ll need the **Manage Server** permission to add me to a server.'
                              .format(self.liara.invite_url))
 
+    def format_english(self, number, metric):  # just for the uptime command, but maybe we'll use this somewhere else
+        if number is None:
+            return
+        if 0 < number < 2:
+            return '{0} {1}'.format(number, metric)
+        else:
+            return '{0} {1}s'.format(number, metric)
+
+    @commands.command()
+    async def uptime(self):
+        """Gets Liara's uptime.
+        Modified R. Danny method (thanks Danny!)"""
+        now = time.time()
+        difference = int(now) - int(self.liara.boot_time)  # otherwise we're dealing with floats
+        hours, remainder = divmod(difference, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        days, hours = divmod(hours, 24)
+
+        if days:
+            output = 'Liara has been up for {d}, {h}, {m} and {s}.'
+        else:
+            output = 'Liara has been up for {h}, {m} and {s}.'
+
+        output = output.format(d=self.format_english(days, 'day'), h=self.format_english(hours, 'hour'),
+                               m=self.format_english(minutes, 'minute'), s=self.format_english(seconds, 'second'))
+
+        await self.liara.say(output)
+
 
 def setup(liara):
     liara.add_cog(Useful(liara))
