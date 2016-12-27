@@ -1,4 +1,5 @@
 from discord.ext import commands
+from cogs.utils import checks
 import time
 
 
@@ -18,6 +19,7 @@ class Useful:
         await self.liara.say('Pong. Pseudo-ping: `{0}ms`'.format(ms))
 
     @commands.command()
+    @checks.is_bot_account()
     async def invite(self):
         """Gets Liara's invite URL."""
         await self.liara.say('My invite URL is\n<{0}&permissions=8>.\n\n'

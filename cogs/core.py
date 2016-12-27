@@ -166,6 +166,7 @@ class Core:
 
     @set_cmd.command()
     @checks.is_owner()
+    @checks.is_bot_account()
     async def owner(self, *owners: discord.User):
         """Sets Liara's owners."""
         self.settings['owners'] = [x.id for x in list(owners)]
@@ -176,6 +177,7 @@ class Core:
 
     @set_cmd.command(pass_context=True, no_pm=True)
     @checks.admin_or_permissions()
+    @checks.is_bot_account()
     async def admin(self, ctx, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive."""
@@ -194,6 +196,7 @@ class Core:
 
     @set_cmd.command(pass_context=True, no_pm=True)
     @checks.admin_or_permissions()
+    @checks.is_bot_account()
     async def moderator(self, ctx, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive."""
@@ -217,12 +220,14 @@ class Core:
 
     @set_cmd.group(name='ignore', pass_context=True, invoke_without_command=True)
     @checks.admin_or_permissions()
+    @checks.is_bot_account()
     async def ignore_cmd(self, ctx):
         """Helps you ignore/unignore servers/channels."""
         await self.liara.send_cmd_help(ctx)
 
     @ignore_cmd.command(pass_context=True)
     @checks.admin_or_permissions()
+    @checks.is_bot_account()
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel."""
         self._ignore_check(ctx)
@@ -239,7 +244,9 @@ class Core:
 
     @ignore_cmd.command(pass_context=True)
     @checks.admin_or_permissions()
+    @checks.is_bot_account()
     async def server(self, ctx, state: bool):
+        """Ignores/unignores the current server."""
         self._ignore_check(ctx)
         server = ctx.message.server.id
         if state:

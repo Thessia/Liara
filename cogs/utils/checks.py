@@ -1,5 +1,6 @@
 # noinspection PyUnresolvedReferences
 from discord.ext import commands
+# noinspection PyUnresolvedReferences
 import __main__
 
 
@@ -9,6 +10,12 @@ def owner_check(ctx):
 
 def is_owner():
     return commands.check(owner_check)
+
+
+def is_bot_account():
+    def predicate(ctx):
+        return ctx.bot.user.bot
+    return commands.check(predicate)
 
 
 def mod_or_permissions(**permissions):
