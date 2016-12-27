@@ -45,9 +45,9 @@ class Useful:
         days, hours = divmod(hours, 24)
 
         if days:
-            output = 'Liara has been up for {d}, {h}, {m} and {s}.'
+            output = 'I\'ve been up for {d}, {h}, {m} and {s}.'
         else:
-            output = 'Liara has been up for {h}, {m} and {s}.'
+            output = 'I\'ve been up for {h}, {m} and {s}.'
 
         output = output.format(d=self.format_english(days, 'day'), h=self.format_english(hours, 'hour'),
                                m=self.format_english(minutes, 'minute'), s=self.format_english(seconds, 'second'))
