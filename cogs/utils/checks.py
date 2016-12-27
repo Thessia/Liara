@@ -42,7 +42,7 @@ def mod_or_permissions(**permissions):
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:
             if permissions[permission]:
-                allowed = user_permissions.get(permission, default=False)
+                allowed = user_permissions.get(permission, False)
                 if allowed:
                     return True
         return False
@@ -66,7 +66,7 @@ def admin_or_permissions(**permissions):
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:
             if permissions[permission]:
-                allowed = user_permissions.get(permission, default=False)
+                allowed = user_permissions.get(permission, False)
                 if allowed:
                     return True
         return False
@@ -83,7 +83,7 @@ def serverowner_or_permissions(**permissions):
             return True
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:
-            allowed = user_permissions.get(permission, default=False)
+            allowed = user_permissions.get(permission, False)
             if allowed:
                 return True
         return False
