@@ -3,3 +3,4 @@ cogs/utils/chat_formatting.py
 .idea/
 data/
 cogs/dev/
+logs/
