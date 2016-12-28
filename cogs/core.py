@@ -19,7 +19,7 @@ class Core:
         self.liara = liara
         self.settings = dataIO.load_json('settings')
         self.ignore_db = False
-        self.logger = self.liara.logger.info
+        self.logger = self.liara.logger
         self.liara.loop.create_task(self.post())
 
     def __unload(self):
