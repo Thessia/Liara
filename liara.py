@@ -9,6 +9,10 @@ import time
 import asyncio
 import traceback
 import redis
+import logging
+import os.path
+import tarfile
+import datetime
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
@@ -16,6 +20,7 @@ parser.add_argument('--description', type=str, help='modify the bot description 
                     default='Liara, an open-source Discord bot written by Pandentia and contributors\n'
                             'https://github.com/Thessia/Liara')
 parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
+parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
 parser.add_argument('token', type=str, help='sets the token')
 shard_grp = parser.add_argument_group('sharding')
 shard_grp.add_argument('--shard_id', type=int, help='the shard ID the bot should run on')
@@ -27,18 +32,59 @@ redis_grp.add_argument('--db', type=int, help='the Redis database', default=0)
 redis_grp.add_argument('--password', type=str, help='the Redis password', default=None)
 args = parser.parse_args()
 
+# Logging starts here
+# Create directory for logs if it doesn't exist
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+
+# Compress logfiles that were left over from the last run
+os.chdir('logs')
+for item in os.listdir('.'):
+    if item.endswith('.log'):
+        with tarfile.open(item + '.tar.gz', mode='w:gz') as tar:
+            tar.add(item)
+        os.remove(item)
+os.chdir('..')
+
+# Define a format
+now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.')[0]
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+# Setting up loggers
+logger = logging.getLogger('liara')
+if args.debug:
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+
+handler = logging.FileHandler('logs/liara_{}.log'.format(now))
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+discord_logger = logging.getLogger('discord')
+discord_logger.setLevel(logging.INFO)
+
+handler = logging.FileHandler('logs/discord_{}.log'.format(now))
+handler.setFormatter(formatter)
+discord_logger.addHandler(handler)
+
 # Make it clear that we're not doing any Windows support
 if sys.platform == 'win32':
-    print('There is absolutely NO support for Windows-based Operating Systems. Proceed with caution, '
-          'because if you mess this up, no one will help you.')
+    logger.warning('There is absolutely NO support for Windows-based Operating Systems. Proceed with caution, '
+                   'because if you mess this up, no one will help you.')
 
 if args.shard_id is not None:  # usability
     args.shard_id -= 1
 
+# Redis connection attempt
 try:
     redis_conn = redis.StrictRedis(host=args.host, port=args.port, db=args.db, password=args.password)
 except redis.ConnectionError:
-    print('Unable to connect to Redis...')
+    logger.critical('Unable to connect to Redis, exiting...')
     exit(2)
 
 
@@ -47,8 +93,9 @@ class Liara(commands.Bot):
         super().__init__(command_prefix, **options)
         self.args = args
         self.boot_time = time.time()  # for uptime tracking, we'll use this later
-        print('Liara is booting, please wait...')
-        self.redis = redis.StrictRedis(host=args.host, port=args.port, db=args.db, password=args.password)
+        self.logger = logger
+        self.logger.info('Liara is booting, please wait...')
+        self.redis = redis_conn
         self.lockdown = True  # so we don't process any messages before on_ready
         self.settings = dataIO.load_json('settings')
         self.owner = None  # this gets updated in on_ready
@@ -56,7 +103,7 @@ class Liara(commands.Bot):
         try:
             loader = self.settings['loader']
             self.load_extension('cogs.' + loader)
-            print('Using third-party loader and core cog, {0}.'.format(loader))
+            self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
         except KeyError:
             self.load_extension('cogs.core')
 
@@ -64,13 +111,14 @@ class Liara(commands.Bot):
         self.lockdown = False
         self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
                        .format(self.user))
-        print('Liara is connected!\nLogged in as {0}.'.format(self.user))
+        self.logger.info('Liara is connected!')
+        self.logger.info('Logged in as {0}.'.format(self.user))
         if self.shard_id is not None:
-            print('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
+            self.logger.info('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
         if self.user.bot:
             app_info = await self.application_info()
             self.invite_url = dutils.oauth_url(app_info.id)
-            print('Invite URL: {0}'.format(self.invite_url))
+            self.logger.info('Invite URL: {0}'.format(self.invite_url))
             self.owner = app_info.owner
         else:
             self.owner = self.user
@@ -105,11 +153,11 @@ def run_app():
     try:
         loop.run_until_complete(run_bot())
     except KeyboardInterrupt:
-        print('Shutting down threads and quitting. Thank you for using Liara.')
+        logger.info('Shutting down threads and quitting. Thank you for using Liara.')
         loop.run_until_complete(liara.logout())
     except Exception:
         exit_code = 1
-        print(traceback.format_exc())
+        logger.critical(traceback.format_exc())
         loop.run_until_complete(liara.logout())
     finally:
         loop.close()

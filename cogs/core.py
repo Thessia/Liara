@@ -19,6 +19,7 @@ class Core:
         self.liara = liara
         self.settings = dataIO.load_json('settings')
         self.ignore_db = False
+        self.logger = self.liara.logger.info
         self.liara.loop.create_task(self.post())
 
     def __unload(self):
@@ -29,11 +30,11 @@ class Core:
         """Power-on self test. Beep boop."""
         if 'prefixes' in self.settings:
             self.liara.command_prefix = self.settings['prefixes']
-            print('Liara\'s prefixes are: ' + ', '.join(self.liara.command_prefix))
+            self.logger.info('Liara\'s prefixes are: ' + ', '.join(self.liara.command_prefix))
         else:
             prefix = random.randint(1, 2**8)
             self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
-            print('Liara hasn\'t been started before, so her prefix has been set to "{0}".'.format(prefix))
+            self.logger.info('Liara hasn\'t been started before, so her prefix has been set to "{0}".'.format(prefix))
 
         if 'cogs' in self.settings:
             for cog in self.settings['cogs']:
@@ -42,7 +43,7 @@ class Core:
                         self.liara.load_extension(cog)
                     except ImportError:
                         self.settings['cogs'].remove(cog)
-                        print('{0} could not be loaded. This message will not be shown again.'.format(cog))
+                        self.logger.warn('{0} could not be loaded. This message will not be shown again.'.format(cog))
         else:
             self.settings['cogs'] = ['cogs.core']
         if 'roles' not in self.settings:
@@ -62,7 +63,8 @@ class Core:
                             self.liara.load_extension(cog)
                         except ImportError:
                             self.settings['cogs'].remove(cog)  # something went wrong here
-                            print('{0} could not be loaded. This message will not be shown again.'.format(cog))
+                            self.logger.warn('{0} could not be loaded. This message will not be shown again.'
+                                             .format(cog))
                 # Unloading cogs
                 for cog in list(self.liara.extensions):
                     if cog not in self.settings['cogs']:
