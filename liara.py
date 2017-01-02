@@ -14,23 +14,57 @@ import os.path
 import tarfile
 import datetime
 
+# Get defaults for argparse
+help_description = os.environ.get('LIARA_HELP', 'Liara, an open-source Discord bot written by Pandentia and '
+                                                'contributors\n'
+                                                'https://github.com/Thessia/Liara')
+token = os.environ.get('LIARA_TOKEN', None)
+redis_host = os.environ.get('LIARA_REDIS_HOST', 'localhost')
+redis_pass = os.environ.get('LIARA_REDIS_PASSWORD', None)
+try:
+    redis_port = int(os.environ.get('LIARA_REDIS_PORT', 6379))
+    redis_db = int(os.environ.get('LIARA_REDIS_DB', 0))
+except ValueError:
+    print('Error parsing environment variables LIARA_REDIS_PORT or LIARA_REDIS_DB\n'
+          'Please check that these can be converted to integers')
+    exit(4)
+
+try:
+    shard_id = os.environ.get('LIARA_SHARD_ID', None)
+    if shard_id is not None:
+        shard_id = int(shard_id)
+    shard_count = os.environ.get('LIARA_SHARD_COUNT', None)
+    if shard_count is not None:
+        shard_count = int(shard_count)
+except ValueError:
+    print('Error parsing environment variables LIARA_SHARD_ID or LIARA_SHARD_COUNT\n'
+          'Please check that these can be converted to integers')
+    exit(4)
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--description', type=str, help='modify the bot description shown in the help command',
-                    default='Liara, an open-source Discord bot written by Pandentia and contributors\n'
-                            'https://github.com/Thessia/Liara')
+                    default=help_description)
 parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
 parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
-parser.add_argument('token', type=str, help='sets the token')
+parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
 shard_grp = parser.add_argument_group('sharding')
-shard_grp.add_argument('--shard_id', type=int, help='the shard ID the bot should run on')
-shard_grp.add_argument('--shard_count', type=int, help='the total number of shards you are planning to run')
+# noinspection PyUnboundLocalVariable
+shard_grp.add_argument('--shard_id', type=int, help='the shard ID the bot should run on', default=shard_id)
+# noinspection PyUnboundLocalVariable
+shard_grp.add_argument('--shard_count', type=int, help='the total number of shards you are planning to run',
+                       default=shard_count)
 redis_grp = parser.add_argument_group('redis')
-redis_grp.add_argument('--host', type=str, help='the Redis host', default='localhost')
-redis_grp.add_argument('--port', type=int, help='the Redis port', default=6379)
-redis_grp.add_argument('--db', type=int, help='the Redis database', default=0)
-redis_grp.add_argument('--password', type=str, help='the Redis password', default=None)
+redis_grp.add_argument('--host', type=str, help='the Redis host', default=redis_host)
+# noinspection PyUnboundLocalVariable
+redis_grp.add_argument('--port', type=int, help='the Redis port', default=redis_port)
+# noinspection PyUnboundLocalVariable
+redis_grp.add_argument('--db', type=int, help='the Redis database', default=redis_db)
+redis_grp.add_argument('--password', type=str, help='the Redis password', default=redis_pass)
 args = parser.parse_args()
+
+if args.token is None:
+    exit(parser.print_usage())
 
 # Logging starts here
 # Create directory for logs if it doesn't exist
