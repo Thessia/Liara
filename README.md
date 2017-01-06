@@ -9,11 +9,16 @@ Liara is a direct competitor to [Twentysix26's Red](https://github.com/Twentysix
  * Actual modularity
    * Red isn't as fully modular as it's advertised, because the `owner.py` cog can't be unloaded, yet there are commands there that could've easily been moved to an additional cog (or multiple)
    * Liara lets you replace the bootloader and core cog, `core.py`, so you can make her work the way you want
+   * Instead of using a settings.json file for settings, Liara uses command-line flags
+   * Environment variables can be used to substitute command-line flags, making bot hosting easier for hosting providers
  * Multiple owner support
+   * This lets you share Liara with friends and your hosting provider easily
  * Sharding support
    * Uses Redis as a backend, meaning you can easily hook third-party applications into the database and have them update configuration settings on-the-fly
  * Selfbot mode
+   * This lets you run Liara as a selfbot, so that you can take the benefits of a fully modular bot to any server (within reason)
  * No JSON files anywhere in sight
+ * Logs are stored in a compressed format (`.tar.gz`), so that you don't have to waste any disk space
 
 ### Join our Discord server!
 [![Discord](https://discordapp.com/api/guilds/247754180763189258/widget.png?style=banner3)](https://discord.gg/JRJjMTy)
