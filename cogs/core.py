@@ -93,7 +93,7 @@ class Core:
             if message.author.id in self.liara.owners:  # *always* process owner and server owner commands
                 await self.liara.process_commands(message)
                 return
-            if message.server is not None:
+            if isinstance(message.author, discord.Member):
                 if message.server.owner == message.author:
                     await self.liara.process_commands(message)
                     return

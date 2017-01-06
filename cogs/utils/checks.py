@@ -1,4 +1,4 @@
-# noinspection PyUnresolvedReferences
+import discord
 from discord.ext import commands
 # noinspection PyUnresolvedReferences
 import __main__
@@ -22,7 +22,7 @@ def mod_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if ctx.message.channel.is_private:
+        if not isinstance(ctx.message.author, discord.Member):
             return False
         if ctx.message.author == ctx.message.server.owner:
             return True
@@ -53,7 +53,7 @@ def admin_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if ctx.message.channel.is_private:
+        if not isinstance(ctx.message.author, discord.Member):
             return False
         if ctx.message.author == ctx.message.server.owner:
             return True
@@ -77,7 +77,7 @@ def serverowner_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if ctx.message.channel.is_private:
+        if not isinstance(ctx.message.author, discord.Member):
             return False
         if ctx.message.author == ctx.message.server.owner:
             return True
