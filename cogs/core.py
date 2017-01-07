@@ -283,7 +283,7 @@ class Core:
                 await self.liara.say('Unable to load; the cog caused a `{0}`:\n```py\n{1}\n```'
                                      .format(type(e).__name__, _traceback))
         else:
-            await self.liara.say('Unable to load; the cog is already loaded.')
+            await self.liara.say('Unable to load; that cog is already loaded.')
 
     @commands.command()
     @checks.is_owner()
