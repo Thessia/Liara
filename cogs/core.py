@@ -118,8 +118,8 @@ class Core:
             exception = exception.original
             _traceback = traceback.format_tb(exception.__traceback__)
             _traceback = ''.join(_traceback)
-            error = '`{0}` in command `{1}`: ```py\n{2}```'\
-                .format(type(exception).__name__, context.command.qualified_name, _traceback)
+            error = '`{0}` in command `{1}`: ```py\n{2}{0}: {3}\n```'\
+                .format(type(exception).__name__, context.command.qualified_name, _traceback, exception.__str__())
             await self.liara.send_message(context.message.channel, error)
         elif isinstance(exception, commands_errors.CommandNotFound):
             pass
@@ -280,8 +280,8 @@ class Core:
             except Exception as e:
                 _traceback = traceback.format_tb(e.__traceback__)
                 _traceback = ''.join(_traceback[2:])
-                await self.liara.say('Unable to load; the cog caused a `{0}`:\n```py\n{1}\n```'
-                                     .format(type(e).__name__, _traceback))
+                await self.liara.say('Unable to load; the cog caused a `{0}`:\n```py\n{1}{0}: {2}\n```'
+                                     .format(type(e).__name__, _traceback, e.__str__()))
         else:
             await self.liara.say('Unable to load; that cog is already loaded.')
 
