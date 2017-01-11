@@ -82,7 +82,8 @@ class Core:
                 self.liara.owners = self.settings['owners']
             await asyncio.sleep(1)
 
-    async def create_gist(self, content, filename='output.py'):
+    @staticmethod
+    async def create_gist(content, filename='output.py'):
         github_file = {'files': {filename: {'content': str(content)}}}
         async with aiohttp.ClientSession() as session:
             async with session.post('https://api.github.com/gists', data=json.dumps(github_file)) as response:
@@ -166,6 +167,7 @@ class Core:
         except discord.errors.InvalidArgument:
             await self.liara.say('That image type is unsupported.')
 
+    # noinspection PyTypeChecker
     @set_cmd.command()
     @checks.is_owner()
     @checks.is_bot_account()
