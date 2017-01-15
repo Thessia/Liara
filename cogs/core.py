@@ -373,6 +373,7 @@ class Core:
         try:
             await self.liara.say('```py\n{0}\n```'.format(output))
         except discord.HTTPException:
+            await self.liara.type()
             gist = await self.create_gist(output)
             await self.liara.say('Sorry, that output was too large, so I uploaded it to gist instead.\n'
                                  '{0}'.format(gist['html_url']))
