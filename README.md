@@ -19,6 +19,9 @@ Liara is a direct competitor to [Twentysix26's Red](https://github.com/Twentysix
    * This lets you run Liara as a selfbot, so that you can take the benefits of a fully modular bot to any server (within reason)
  * No JSON files anywhere in sight
  * Logs are stored in a compressed format (`.tar.gz`), so that you don't have to waste any disk space
+ * Modular message-processing preconditions
+   * This lets you change the message processing behavior to your liking. You can, for example, set up a whitelist of who can use Liara with this.
+   * You can also set up a blacklist of people who should never be able to use Liara.
 
 ### Join our Discord server!
 [![Discord](https://discordapp.com/api/guilds/247754180763189258/widget.png?style=banner3)](https://discord.gg/JRJjMTy)
