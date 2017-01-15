@@ -21,6 +21,8 @@ class Core:
         self.ignore_db = False
         self.logger = self.liara.logger
         self.liara.loop.create_task(self.post())
+        self.global_preconditions = []  # preconditions to message processing
+        self.global_preconditions_overrides = []  # overrides to the preconditions
 
     def __unload(self):
         self.settings.die = True
@@ -43,7 +45,8 @@ class Core:
                         self.liara.load_extension(cog)
                     except ImportError:
                         self.settings['cogs'].remove(cog)
-                        self.logger.warn('{0} could not be loaded. This message will not be shown again.'.format(cog))
+                        self.logger.warning('{0} could not be loaded. This message will not be shown again.'
+                                            .format(cog))
         else:
             self.settings['cogs'] = ['cogs.core']
         if 'roles' not in self.settings:
@@ -63,8 +66,8 @@ class Core:
                             self.liara.load_extension(cog)
                         except ImportError:
                             self.settings['cogs'].remove(cog)  # something went wrong here
-                            self.logger.warn('{0} could not be loaded. This message will not be shown again.'
-                                             .format(cog))
+                            self.logger.warning('{0} could not be loaded. This message will not be shown again.'
+                                                .format(cog))
                 # Unloading cogs
                 for cog in list(self.liara.extensions):
                     if cog not in self.settings['cogs']:
@@ -110,6 +113,39 @@ class Core:
                         return
                     if message.channel.id in self.settings['ignores'][message.server.id]['ignored_channels']:
                         return
+            # Overrides start here (yay)
+            for override in self.global_preconditions_overrides:
+                # noinspection PyBroadException
+                try:
+                    if inspect.isawaitable(override):
+                        out = await override(message)
+                        if out:
+                            await self.liara.process_commands(message)
+                            return
+                    else:
+                        if override(message):
+                            await self.liara.process_commands(message)
+                            return
+                except:
+                    self.logger.warning('Removed precondition override "{0}", it was malfunctioning.'
+                                        .format(override.__name__))
+                    self.global_preconditions_overrides.remove(override)
+            # Preconditions
+            for precondition in self.global_preconditions:
+                # noinspection PyBroadException
+                try:
+                    if inspect.isawaitable(precondition):
+                        out = await precondition(message)
+                        if not out:
+                            return
+                    else:
+                        if not precondition(message):
+                            return
+                except:
+                    self.logger.warning('Removed precondition "{0}", it was malfunctioning.'
+                                        .format(precondition.__name__))
+                    self.global_preconditions.remove(precondition)
+
             await self.liara.process_commands(message)
 
     async def on_command_error(self, exception, context):
