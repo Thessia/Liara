@@ -119,11 +119,11 @@ class Core:
                 try:
                     if inspect.isawaitable(override):
                         out = await override(message)
-                        if out:
+                        if out is True:
                             await self.liara.process_commands(message)
                             return
                     else:
-                        if override(message):
+                        if override(message) is True:
                             await self.liara.process_commands(message)
                             return
                 except:
@@ -136,10 +136,10 @@ class Core:
                 try:
                     if inspect.isawaitable(precondition):
                         out = await precondition(message)
-                        if not out:
+                        if out is False:
                             return
                     else:
-                        if not precondition(message):
+                        if precondition(message) is False:
                             return
                 except:
                     self.logger.warning('Removed precondition "{0}", it was malfunctioning.'
