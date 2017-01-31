@@ -18,6 +18,30 @@ class Useful:
         ms = int((after_typing - before_typing) * 1000)
         await self.liara.say('Pong. Pseudo-ping: `{0}ms`'.format(ms))
 
+    @commands.command(hidden=True)
+    @checks.is_owner()
+    async def fullping(self):
+        """More intensive ping, gives debug info on reaction times"""
+        before = time.time()
+        await self.liara.type()
+        after = time.time()
+        typing_delta = int((after - before) * 1000)
+
+        before = time.time()
+        message = await self.liara.say('Ping test...')
+        after = time.time()
+        await self.liara.delete_message(message)
+        message_delta = int((after - before) * 1000)
+
+        before = time.time()
+        await (await self.liara.ws.ping())  # get a Future and await it
+        after = time.time()
+        socket_delta = int((after - before) * 1000)
+
+        await self.liara.say('Typing status: {}ms\n'
+                             'Message sending: {}ms\n'
+                             'Websocket ping: {}ms'.format(typing_delta, message_delta, socket_delta))
+
     @commands.command()
     @checks.is_bot_account()
     async def invite(self):
