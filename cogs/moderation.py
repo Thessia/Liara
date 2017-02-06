@@ -34,8 +34,8 @@ class Moderation:
         embed.description = '**Display name**: {0.display_name}\n**ID**: {0.id}\n[Avatar]({1})'\
                             .format(user, avatar_url)
 
-        join_delta = datetime.datetime.now() - user.joined_at
-        created_delta = datetime.datetime.now() - user.created_at
+        join_delta = datetime.datetime.utcnow() - user.joined_at
+        created_delta = datetime.datetime.utcnow() - user.created_at
         embed.add_field(name='Join Dates', value='**This server**: {} ago ({})\n**Discord**: {} ago ({})'
                         .format(join_delta, user.joined_at, created_delta, user.created_at))
 
