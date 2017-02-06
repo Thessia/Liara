@@ -106,7 +106,7 @@ class Moderation:
             await self.liara.ban(member)
             await self.liara.say('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to ban people here.')
+            await self.liara.say('Sorry, I don\'t have permission to ban that person here.')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(kick_members=True)
@@ -120,7 +120,7 @@ class Moderation:
             await self.liara.unban(member)
             await self.liara.say('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to ban people here.')
+            await self.liara.say('Sorry, I don\'t have permission to ban that person here.')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(kick_members=True)
@@ -131,7 +131,7 @@ class Moderation:
             await self.liara.unban(member)
             await self.liara.say('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to kick people here.')
+            await self.liara.say('Sorry, I don\'t have permission to kick that person here.')
 
 
 def setup(liara):
