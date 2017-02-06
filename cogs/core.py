@@ -355,19 +355,22 @@ class Core:
         else:
             await self.liara.say('Unable to reload, that cog isn\'t loaded.')
 
-    # noinspection PyUnusedLocal
     @commands.command(pass_context=True, hidden=True, aliases=['debug'])
     @checks.is_owner()
     async def eval(self, ctx, *, code: str):
         """Evaluates Python code."""
-        message = ctx.message
-        author = ctx.message.author
-        channel = ctx.message.channel
-        server = ctx.message.server
-        client = ctx.bot
-        bot = ctx.bot
 
-        output = eval(code)
+        environment = {
+            'bot': self.liara,
+            'client': self.liara,
+            'ctx': ctx,
+            'message': ctx.message,
+            'channel': ctx.message.channel,
+            'server': ctx.message.server,
+            'author': ctx.message.author
+        }
+
+        output = eval(code, environment)
         if inspect.isawaitable(output):
             output = await output
 
