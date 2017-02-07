@@ -5,7 +5,7 @@ import __main__
 
 
 def owner_check(ctx):
-    return ctx.message.author.id in __main__.liara.owners
+    return str(ctx.message.author.id) in __main__.liara.owners
 
 
 def is_owner():
@@ -30,12 +30,12 @@ def mod_or_permissions(**permissions):
         # what we have on file (if we do)
         roles = [x.name.lower() for x in ctx.message.author.roles]
         try:
-            if __main__.liara.settings['roles'][ctx.message.server.id]['mod_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['mod_role'].lower() in roles:
                 return True
         except KeyError:
             pass
         try:
-            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass
@@ -59,7 +59,7 @@ def admin_or_permissions(**permissions):
             return True
         try:
             roles = [x.name.lower() for x in ctx.message.author.roles]
-            if __main__.liara.settings['roles'][ctx.message.server.id]['admin_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass

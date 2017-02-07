@@ -78,8 +78,8 @@ class Core:
                 if 'owners' not in self.settings:
                     self.settings['owners'] = []
                 try:
-                    if self.liara.owner.id not in self.settings['owners']:
-                        self.settings['owners'].append(self.liara.owner.id)
+                    if str(self.liara.owner.id) not in self.settings['owners']:
+                        self.settings['owners'].append(str(self.liara.owner.id))
                 except AttributeError:
                     pass
                 self.liara.owners = self.settings['owners']
@@ -209,7 +209,7 @@ class Core:
     @checks.is_bot_account()
     async def owner(self, *owners: discord.User):
         """Sets Liara's owners."""
-        self.settings['owners'] = [x.id for x in list(owners)]
+        self.settings['owners'] = [str(x.id) for x in list(owners)]
         if len(list(owners)) == 1:
             await self.liara.say('Owner set.')
         else:
@@ -221,7 +221,7 @@ class Core:
     async def admin(self, ctx, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive."""
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
         if role is not None:
@@ -240,7 +240,7 @@ class Core:
     async def moderator(self, ctx, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive."""
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
         if role is not None:
@@ -254,7 +254,7 @@ class Core:
                                  .format(ctx.prefix))
 
     def _ignore_check(self, ctx):
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         if server not in self.settings['ignores']:
             self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
 
@@ -271,8 +271,8 @@ class Core:
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel."""
         self._ignore_check(ctx)
-        channel = ctx.message.channel.id
-        server = ctx.message.server.id
+        channel = str(ctx.message.channel.id)
+        server = str(ctx.message.server.id)
         if state:
             if channel not in self.settings['ignores'][server]['ignored_channels']:
                 self.settings['ignores'][server]['ignored_channels'].append(channel)
@@ -288,7 +288,7 @@ class Core:
     async def server(self, ctx, state: bool):
         """Ignores/unignores the current server."""
         self._ignore_check(ctx)
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         if state:
             self.settings['ignores'][server]['server_ignore'] = True
             await self.liara.say('Server ignored.')
