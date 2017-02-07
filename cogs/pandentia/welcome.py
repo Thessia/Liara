@@ -32,10 +32,10 @@ class Welcome:
         if len(message) > 500:
             await self.liara.say('That welcome message is too long. Try something under 500 characters.')
             return
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         self.check_for_server(server)
         self.welcome[server]['status'] = True
-        self.welcome[server]['channel'] = channel.id
+        self.welcome[server]['channel'] = str(channel.id)
         self.welcome[server]['message'] = message
         await self.liara.say('Welcome message set.')
 
@@ -43,7 +43,7 @@ class Welcome:
     @checks.mod_or_permissions(administrator=True)
     async def welcomeclear(self, ctx):
         """Clears the server's welcome message."""
-        server = ctx.message.server.id
+        server = str(ctx.message.server.id)
         if self.check_for_server(server):
             self.welcome.pop(server)
             await self.liara.say('Welcome message cleared.')
@@ -51,7 +51,7 @@ class Welcome:
             await self.liara.say('This server doesn\'t have a welcome message.')
 
     async def on_member_join(self, member):
-        server = member.server.id
+        server = str(member.server.id)
         await asyncio.sleep(2)
         if self.disabled:
             return
