@@ -363,6 +363,7 @@ class Core:
         environment = {
             'bot': self.liara,
             'client': self.liara,
+            'liara': self.liara,
             'ctx': ctx,
             'message': ctx.message,
             'channel': ctx.message.channel,
