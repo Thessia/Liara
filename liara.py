@@ -134,6 +134,8 @@ class Liara(commands.Bot):
         self.settings = dataIO.load_json('settings')
         self.owner = None  # this gets updated in on_ready
         self.invite_url = None  # this too
+        self.send_cmd_help = send_cmd_help
+        self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
         try:
             loader = self.settings['loader']
             self.load_extension('cogs.' + loader)
@@ -159,10 +161,6 @@ class Liara(commands.Bot):
 
     async def on_message(self, message):
         pass
-
-    @staticmethod
-    async def send_cmd_help(ctx):
-        await send_cmd_help(ctx)
 
 
 async def send_cmd_help(ctx):
