@@ -88,3 +88,8 @@ def serverowner_or_permissions(**permissions):
                 return True
         return False
     return commands.check(predicate)
+
+# deal with more of Red's nonsense
+serverowner = serverowner_or_permissions
+admin = admin_or_permissions
+mod = mod_or_permissions
