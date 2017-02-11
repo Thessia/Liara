@@ -91,7 +91,7 @@ class Moderation:
                                                                '**Verification level**: {1}'.format(server, level))
 
         embed.timestamp = server.created_at
-        embed.set_footer(text='Created at')
+        embed.set_footer(text='Created on')
 
         try:
             await self.liara.say(embed=embed)
