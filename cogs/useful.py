@@ -1,6 +1,7 @@
 from discord.ext import commands
 from cogs.utils import checks
 import time
+import asyncio
 
 
 class Useful:
@@ -20,27 +21,25 @@ class Useful:
 
     @commands.command(hidden=True)
     @checks.is_owner()
-    async def fullping(self):
+    async def fullping(self, amount: int=10):
         """More intensive ping, gives debug info on reaction times"""
-        before = time.time()
+        if not 1 < amount < 200:
+            await self.liara.say('Please choose a more reasonable amount of pings.')
+            return
+        please_wait_message = await self.liara.say('Please wait, this will take a while...')
         await self.liara.type()
-        after = time.time()
-        typing_delta = int((after - before) * 1000)
-
-        before = time.time()
-        message = await self.liara.say('Ping test...')
-        after = time.time()
-        await self.liara.delete_message(message)
-        message_delta = int((after - before) * 1000)
-
-        before = time.time()
-        await (await self.liara.ws.ping())  # get a Future and await it
-        after = time.time()
-        socket_delta = int((after - before) * 1000)
-
-        await self.liara.say('Typing status: {}ms\n'
-                             'Message sending: {}ms\n'
-                             'Websocket ping: {}ms'.format(typing_delta, message_delta, socket_delta))
+        values = []
+        for i in range(0, amount):
+            before = time.time()
+            await (await self.liara.ws.ping())
+            after = time.time()
+            delta = (after - before) * 1000
+            values.append(int(delta))
+            await asyncio.sleep(0.5)
+        await self.liara.delete_message(please_wait_message)
+        average = round(sum(values) / len(values))
+        await self.liara.say('Average ping time over {} pings: `{}ms`\nMin/Max ping time: `{}ms/{}ms`'
+                             .format(amount, average, min(values), max(values)))
 
     @commands.command()
     @checks.is_bot_account()
