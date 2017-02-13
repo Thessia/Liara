@@ -72,7 +72,8 @@ class Moderation:
             if len(str(roles)) < 1025:  # deal with limits
                 embed.add_field(name='Roles', value=', '.join(roles))
 
-        channels = [x.mention for x in server.channels if x.type == discord.ChannelType.text]
+        channels = [x[1] for x in sorted([(x.position, x.mention) for x in server.channels if x.type ==
+                    discord.ChannelType.text])]
         if len(str(channels)) < 1025:
             embed.add_field(name='Text channels', value=', '.join(channels))
 
