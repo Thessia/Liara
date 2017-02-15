@@ -49,7 +49,8 @@ class Useful:
                              'You\'ll need the **Manage Server** permission to add me to a server.'
                              .format(self.liara.invite_url))
 
-    def format_english(self, number, metric):  # just for the uptime command, but maybe we'll use this somewhere else
+    @staticmethod
+    def format_english(number, metric):  # just for the uptime command, but maybe we'll use this somewhere else
         if number is None:
             return
         if 0 < number < 2:
