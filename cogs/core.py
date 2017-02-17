@@ -41,9 +41,10 @@ class Core:
         if 'cogs' in self.settings:
             for cog in self.settings['cogs']:
                 if cog not in list(self.liara.extensions):
+                    # noinspection PyBroadException
                     try:
                         self.liara.load_extension(cog)
-                    except ImportError:
+                    except:
                         self.settings['cogs'].remove(cog)
                         self.logger.warning('{0} could not be loaded. This message will not be shown again.'
                                             .format(cog))
@@ -62,9 +63,10 @@ class Core:
                 # Loading cogs
                 for cog in self.settings['cogs']:
                     if cog not in list(self.liara.extensions):
+                        # noinspection PyBroadException
                         try:
                             self.liara.load_extension(cog)
-                        except ImportError:
+                        except:
                             self.settings['cogs'].remove(cog)  # something went wrong here
                             self.logger.warning('{0} could not be loaded. This message will not be shown again.'
                                                 .format(cog))
