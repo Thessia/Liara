@@ -39,7 +39,8 @@ class Moderation:
         embed.add_field(name='Join Dates', value='**This server**: {} ago ({})\n**Discord**: {} ago ({})'
                         .format(join_delta, user.joined_at, created_delta, user.created_at))
 
-        roles = [x.mention for x in user.roles if not x.is_everyone]
+        roles = [x.mention for x in sorted(user.roles, key=lambda role: role.position) if not x.is_everyone]
+        roles.reverse()  # just so it shows up like it does in the official Discord UI
         if roles:  # only show roles if the member has any
             if len(str(roles)) < 1025:  # deal with limits
                 embed.add_field(name='Roles', value=', '.join(roles))
