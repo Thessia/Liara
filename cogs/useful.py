@@ -13,9 +13,9 @@ class Useful:
         """Checks to see if Liara is responding.
         Also checks for reaction time in milliseconds by checking how long it takes for a "typing" status to go through.
         """
-        before_typing = time.time()
+        before_typing = time.monotonic()
         await self.liara.type()
-        after_typing = time.time()
+        after_typing = time.monotonic()
         ms = int((after_typing - before_typing) * 1000)
         await self.liara.say('Pong. Pseudo-ping: `{0}ms`'.format(ms))
 
@@ -30,9 +30,9 @@ class Useful:
         await self.liara.type()
         values = []
         for i in range(0, amount):
-            before = time.time()
+            before = time.monotonic()
             await (await self.liara.ws.ping())
-            after = time.time()
+            after = time.monotonic()
             delta = (after - before) * 1000
             values.append(int(delta))
             await asyncio.sleep(0.5)
