@@ -34,6 +34,9 @@ class Moderation:
         embed.description = '**Display name**: {0.display_name}\n**ID**: {0.id}\n[Avatar]({1})'\
                             .format(user, avatar_url)
 
+        if user.game is not None:
+            embed.description += '\n**Game**: {}'.format(user.game.name)
+
         join_delta = datetime.datetime.utcnow() - user.joined_at
         created_delta = datetime.datetime.utcnow() - user.created_at
         embed.add_field(name='Join Dates', value='**This server**: {} ago ({})\n**Discord**: {} ago ({})'
