@@ -28,9 +28,9 @@ class Sentry:
             self.settings['dsn'] = None
             self.client.set_dsn(None)
 
-        self.client.user_context({'id': context.message.author.id})
         _exception = exception.original
         message = context.message
+        self.client.user_context({'id': message.author.id})
         # noinspection PyBroadException
         try:
             raise _exception
