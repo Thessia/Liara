@@ -4,3 +4,4 @@ cogs/utils/chat_formatting.py
 data/
 cogs/dev/
 logs/
+env/
