@@ -16,33 +16,35 @@ class Moderation:
         """
 
         if user is None:
-            user = ctx.message.author
+            member = ctx.message.author
+        else:
+            member = user
 
         # user-friendly status
-        if user.status == discord.Status.online:
+        if member.status == discord.Status.online:
             status = '<:online:212789758110334977>'
-        elif user.status == discord.Status.idle:
+        elif member.status == discord.Status.idle:
             status = '<:away:212789859071426561>'
-        elif user.status == discord.Status.do_not_disturb:
+        elif member.status == discord.Status.do_not_disturb:
             status = '<:do_not_disturb:236744731088912384>'
         else:
             status = '<:offline:212790005943369728>'
 
         embed = discord.Embed()
-        embed.title = '{} {}'.format(status, user)
-        avatar_url = user.avatar_url.replace('webp', 'png')
+        embed.title = '{} {}'.format(status, member)
+        avatar_url = member.avatar_url.replace('webp', 'png')
         embed.description = '**Display name**: {0.display_name}\n**ID**: {0.id}\n[Avatar]({1})'\
-                            .format(user, avatar_url)
+                            .format(member, avatar_url)
 
-        if user.game is not None:
-            embed.description += '\n**Game**: {}'.format(user.game.name)
+        if member.game is not None:
+            embed.description += '\n**Game**: {}'.format(member.game.name)
 
-        join_delta = datetime.datetime.utcnow() - user.joined_at
-        created_delta = datetime.datetime.utcnow() - user.created_at
+        join_delta = datetime.datetime.utcnow() - member.joined_at
+        created_delta = datetime.datetime.utcnow() - member.created_at
         embed.add_field(name='Join Dates', value='**This server**: {} ago ({})\n**Discord**: {} ago ({})'
-                        .format(join_delta, user.joined_at, created_delta, user.created_at))
+                        .format(join_delta, member.joined_at, created_delta, member.created_at))
 
-        roles = [x.mention for x in sorted(user.roles, key=lambda role: role.position) if not x.is_everyone]
+        roles = [x.mention for x in sorted(member.roles, key=lambda role: role.position) if not x.is_everyone]
         roles.reverse()  # just so it shows up like it does in the official Discord UI
         if roles:  # only show roles if the member has any
             if len(str(roles)) < 1025:  # deal with limits
