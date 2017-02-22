@@ -24,18 +24,18 @@ def mod_or_permissions(**permissions):
             return True
         if not isinstance(ctx.message.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.server.owner:
+        if ctx.message.author == ctx.message.guild.owner:
             return True
         # let's get the roles and compare them to
         # what we have on file (if we do)
         roles = [x.name.lower() for x in ctx.message.author.roles]
         try:
-            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['mod_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['mod_role'].lower() in roles:
                 return True
         except KeyError:
             pass
         try:
-            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['admin_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass
@@ -55,11 +55,11 @@ def admin_or_permissions(**permissions):
             return True
         if not isinstance(ctx.message.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.server.owner:
+        if ctx.message.author == ctx.message.guild.owner:
             return True
         try:
             roles = [x.name.lower() for x in ctx.message.author.roles]
-            if __main__.liara.settings['roles'][str(ctx.message.server.id)]['admin_role'].lower() in roles:
+            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['admin_role'].lower() in roles:
                 return True
         except KeyError:
             pass
@@ -79,7 +79,7 @@ def serverowner_or_permissions(**permissions):
             return True
         if not isinstance(ctx.message.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.server.owner:
+        if ctx.message.author == ctx.message.guild.owner:
             return True
         user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
         for permission in permissions:

@@ -9,25 +9,25 @@ class Useful:
         self.liara = liara
 
     @commands.command()
-    async def ping(self):
+    async def ping(self, ctx):
         """Checks to see if Liara is responding.
         Also checks for reaction time in milliseconds by checking how long it takes for a "typing" status to go through.
         """
         before_typing = time.monotonic()
-        await self.liara.type()
+        await ctx.trigger_typing()
         after_typing = time.monotonic()
         ms = int((after_typing - before_typing) * 1000)
-        await self.liara.say('Pong. Pseudo-ping: `{0}ms`'.format(ms))
+        await ctx.send('Pong. Pseudo-ping: `{0}ms`'.format(ms))
 
     @commands.command(hidden=True)
     @checks.is_owner()
-    async def fullping(self, amount: int=10):
+    async def fullping(self, ctx, amount: int=10):
         """More intensive ping, gives debug info on reaction times"""
         if not 1 < amount < 200:
-            await self.liara.say('Please choose a more reasonable amount of pings.')
+            await ctx.send('Please choose a more reasonable amount of pings.')
             return
-        please_wait_message = await self.liara.say('Please wait, this will take a while...')
-        await self.liara.type()
+        please_wait_message = await ctx.send('Please wait, this will take a while...')
+        await ctx.trigger_typing()
         values = []
         for i in range(0, amount):
             before = time.monotonic()
@@ -38,16 +38,16 @@ class Useful:
             await asyncio.sleep(0.5)
         await self.liara.delete_message(please_wait_message)
         average = round(sum(values) / len(values))
-        await self.liara.say('Average ping time over {} pings: `{}ms`\nMin/Max ping time: `{}ms/{}ms`'
-                             .format(amount, average, min(values), max(values)))
+        await ctx.send('Average ping time over {} pings: `{}ms`\nMin/Max ping time: `{}ms/{}ms`'
+                       .format(amount, average, min(values), max(values)))
 
     @commands.command()
     @checks.is_bot_account()
-    async def invite(self):
+    async def invite(self, ctx):
         """Gets Liara's invite URL."""
-        await self.liara.say('My invite URL is\n<{0}&permissions=8>.\n\n'
-                             'You\'ll need the **Manage Server** permission to add me to a server.'
-                             .format(self.liara.invite_url))
+        await ctx.send('My invite URL is\n<{0}&permissions=8>.\n\n'
+                       'You\'ll need the **Manage Server** permission to add me to a server.'
+                       .format(self.liara.invite_url))
 
     @staticmethod
     def format_english(number, metric):  # just for the uptime command, but maybe we'll use this somewhere else
@@ -59,7 +59,7 @@ class Useful:
             return '{0} {1}s'.format(number, metric)
 
     @commands.command()
-    async def uptime(self):
+    async def uptime(self, ctx):
         """Gets Liara's uptime.
         Modified R. Danny method (thanks Danny!)"""
         now = time.time()
@@ -76,7 +76,7 @@ class Useful:
         output = output.format(d=self.format_english(days, 'day'), h=self.format_english(hours, 'hour'),
                                m=self.format_english(minutes, 'minute'), s=self.format_english(seconds, 'second'))
 
-        await self.liara.say(output)
+        await ctx.send(output)
 
 
 def setup(liara):

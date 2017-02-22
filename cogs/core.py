@@ -96,24 +96,25 @@ class Core:
 
     async def on_message(self, message):
         if not self.liara.lockdown:
-            if message.author.id in self.liara.owners:  # *always* process owner and server owner commands
+            if str(message.author.id) in self.liara.owners:  # *always* process owner and server owner commands
                 await self.liara.process_commands(message)
                 return
             if isinstance(message.author, discord.Member):
-                if message.server.owner == message.author:
+                if message.guild.owner == message.author:
                     await self.liara.process_commands(message)
                     return
+                guild = str(message.guild.id)
                 try:
                     roles = [x.name.lower() for x in message.author.roles]
-                    if self.liara.settings['roles'][message.server.id]['admin_role'].lower() in roles:
+                    if self.liara.settings['roles'][guild]['admin_role'].lower() in roles:
                         await self.liara.process_commands(message)
                         return
                 except KeyError or AttributeError:
                     pass
-                if message.server.id in self.settings['ignores']:
-                    if self.settings['ignores'][message.server.id]['server_ignore']:
+                if guild in self.settings['ignores']:
+                    if self.settings['ignores'][guild]['server_ignore']:
                         return
-                    if message.channel.id in self.settings['ignores'][message.server.id]['ignored_channels']:
+                    if message.channel.id in self.settings['ignores'][guild]['ignored_channels']:
                         return
             # Overrides start here (yay)
             for override in self.global_preconditions_overrides:
@@ -152,24 +153,24 @@ class Core:
 
     async def on_command_error(self, exception, context):
         if isinstance(exception, commands_errors.MissingRequiredArgument):
-            await self.liara.send_cmd_help(context)
+            await self.liara.send_command_help(context)
         elif isinstance(exception, commands_errors.CommandInvokeError):
             exception = exception.original
             _traceback = traceback.format_tb(exception.__traceback__)
             _traceback = ''.join(_traceback)
             error = '`{0}` in command `{1}`: ```py\nTraceback (most recent call last):\n{2}{0}: {3}\n```'\
                 .format(type(exception).__name__, context.command.qualified_name, _traceback, exception)
-            await self.liara.send_message(context.message.channel, error)
+            await context.send(error)
         elif isinstance(exception, commands_errors.CommandNotFound):
             pass
 
-    @commands.group(name='set', pass_context=True, invoke_without_command=True)
+    @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
     async def set_cmd(self, ctx):
         """Sets Liara's settings."""
         await self.liara.send_cmd_help(ctx)
 
-    @set_cmd.command(pass_context=True)
+    @set_cmd.command()
     @checks.is_owner()
     async def prefix(self, ctx, *prefixes: str):
         """Sets Liara's prefixes."""
@@ -181,18 +182,18 @@ class Core:
 
         self.liara.command_prefix = prefixes
         self.settings['prefixes'] = prefixes
-        await self.liara.say('Prefix(es) set.')
+        await ctx.send('Prefix(es) set.')
 
     @set_cmd.command()
     @checks.is_owner()
-    async def name(self, username: str):
+    async def name(self, ctx, username: str):
         """Changes Liara's username."""
         await self.liara.edit_profile(username=username)
-        await self.liara.say('Username changed. Please call me {0} from now on.'.format(username))
+        await ctx.send('Username changed. Please call me {0} from now on.'.format(username))
 
     @set_cmd.command()
     @checks.is_owner()
-    async def avatar(self, url: str):
+    async def avatar(self, ctx, url: str):
         """Changes Liara's avatar."""
         session = aiohttp.ClientSession()
         response = await session.get(url)
@@ -201,113 +202,113 @@ class Core:
         await session.close()
         try:
             await self.liara.edit_profile(avatar=avatar)
-            await self.liara.say('Avatar changed.')
+            await ctx.send('Avatar changed.')
         except discord.errors.InvalidArgument:
-            await self.liara.say('That image type is unsupported.')
+            await ctx.send('That image type is unsupported.')
 
     # noinspection PyTypeChecker
     @set_cmd.command()
     @checks.is_owner()
     @checks.is_bot_account()
-    async def owner(self, *owners: discord.User):
+    async def owner(self, ctx, *owners: discord.User):
         """Sets Liara's owners."""
         self.settings['owners'] = [str(x.id) for x in list(owners)]
         if len(list(owners)) == 1:
-            await self.liara.say('Owner set.')
+            await ctx.send('Owner set.')
         else:
-            await self.liara.say('Owners set.')
+            await ctx.send('Owners set.')
 
-    @set_cmd.command(pass_context=True, no_pm=True)
+    @set_cmd.command(no_pm=True)
     @checks.admin_or_permissions()
     @checks.is_bot_account()
     async def admin(self, ctx, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive."""
-        server = str(ctx.message.server.id)
+        server = str(ctx.message.guild.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
         if role is not None:
             self.settings['roles'][server]['admin_role'] = role
-            await self.liara.say('Admin role set to `{0}` successfully.'.format(role))
+            await ctx.send('Admin role set to `{0}` successfully.'.format(role))
         else:
             if 'admin_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('admin_role')
-            await self.liara.say('Admin role cleared.\n'
-                                 'If you didn\'t intend to do this, use `{0}help set admin` for help.'
-                                 .format(ctx.prefix))
+            await ctx.send('Admin role cleared.\n'
+                           'If you didn\'t intend to do this, use `{0}help set admin` for help.'
+                           .format(ctx.prefix))
 
-    @set_cmd.command(pass_context=True, no_pm=True)
+    @set_cmd.command(no_pm=True)
     @checks.admin_or_permissions()
     @checks.is_bot_account()
     async def moderator(self, ctx, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive."""
-        server = str(ctx.message.server.id)
+        server = str(ctx.message.guild.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
         if role is not None:
             self.settings['roles'][server]['mod_role'] = role
-            await self.liara.say('Moderator role set to `{0}` successfully.'.format(role))
+            await ctx.send('Moderator role set to `{0}` successfully.'.format(role))
         else:
             if 'mod_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('mod_role')
-            await self.liara.say('Moderator role cleared.\n'
-                                 'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
-                                 .format(ctx.prefix))
+            await ctx.send('Moderator role cleared.\n'
+                           'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
+                           .format(ctx.prefix))
 
     def _ignore_check(self, ctx):
-        server = str(ctx.message.server.id)
+        server = str(ctx.message.guild.id)
         if server not in self.settings['ignores']:
             self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
 
-    @set_cmd.group(name='ignore', pass_context=True, invoke_without_command=True)
+    @set_cmd.group(name='ignore', invoke_without_command=True)
     @checks.admin_or_permissions()
     @checks.is_bot_account()
     async def ignore_cmd(self, ctx):
         """Helps you ignore/unignore servers/channels."""
         await self.liara.send_cmd_help(ctx)
 
-    @ignore_cmd.command(pass_context=True)
+    @ignore_cmd.command()
     @checks.admin_or_permissions()
     @checks.is_bot_account()
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel."""
         self._ignore_check(ctx)
         channel = str(ctx.message.channel.id)
-        server = str(ctx.message.server.id)
+        server = str(ctx.message.guild.id)
         if state:
             if channel not in self.settings['ignores'][server]['ignored_channels']:
                 self.settings['ignores'][server]['ignored_channels'].append(channel)
-            await self.liara.say('Channel ignored.')
+            await ctx.send('Channel ignored.')
         else:
             if channel in self.settings['ignores'][server]['ignored_channels']:
                 self.settings['ignores'][server]['ignored_channels'].remove(channel)
-            await self.liara.say('Channel unignored.')
+            await ctx.send('Channel unignored.')
 
-    @ignore_cmd.command(pass_context=True)
+    @ignore_cmd.command()
     @checks.admin_or_permissions()
     @checks.is_bot_account()
     async def server(self, ctx, state: bool):
         """Ignores/unignores the current server."""
         self._ignore_check(ctx)
-        server = str(ctx.message.server.id)
+        server = str(ctx.message.guild.id)
         if state:
             self.settings['ignores'][server]['server_ignore'] = True
-            await self.liara.say('Server ignored.')
+            await ctx.send('Server ignored.')
         else:
             self.settings['ignores'][server]['server_ignore'] = False
-            await self.liara.say('Server unignored.')
+            await ctx.send('Server unignored.')
 
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
-    async def halt(self):
+    async def halt(self, ctx):
         """Shuts Liara down."""
-        await self.liara.say(':wave:')
+        await ctx.send(':wave:')
         await self.liara.logout()
 
     @commands.command()
     @checks.is_owner()
-    async def load(self, name: str):
+    async def load(self, ctx, name: str):
         """Loads a cog."""
         cog_name = 'cogs.{0}'.format(name)
         if cog_name not in list(self.liara.extensions):
@@ -316,35 +317,35 @@ class Core:
                 importlib.reload(cog)
                 self.liara.load_extension(cog.__name__)
                 self.settings['cogs'].append(cog_name)
-                await self.liara.say('`{0}` loaded successfully.'.format(name))
+                await ctx.send('`{0}` loaded successfully.'.format(name))
             except Exception as e:
                 _traceback = traceback.format_tb(e.__traceback__)
                 _traceback = ''.join(_traceback[2:])
-                await self.liara.say('Unable to load; the cog caused a `{0}`:\n```py\nTraceback '
-                                     '(most recent call last):\n{1}{0}: {2}\n```'
-                                     .format(type(e).__name__, _traceback, e))
+                await ctx.send('Unable to load; the cog caused a `{0}`:\n```py\nTraceback '
+                               '(most recent call last):\n{1}{0}: {2}\n```'
+                               .format(type(e).__name__, _traceback, e))
         else:
-            await self.liara.say('Unable to load; that cog is already loaded.')
+            await ctx.send('Unable to load; that cog is already loaded.')
 
     @commands.command()
     @checks.is_owner()
-    async def unload(self, name: str):
+    async def unload(self, ctx, name: str):
         """Unloads a cog."""
         if name == 'core':
-            await self.liara.say('Sorry, I can\'t let you do that. '
-                                 'If you want to install a custom loader, look into the documentation.')
+            await ctx.send('Sorry, I can\'t let you do that. '
+                           'If you want to install a custom loader, look into the documentation.')
             return
         cog_name = 'cogs.{0}'.format(name)
         if cog_name in list(self.liara.extensions):
             self.liara.unload_extension(cog_name)
             self.settings['cogs'].remove(cog_name)
-            await self.liara.say('`{0}` unloaded successfully.'.format(name))
+            await ctx.send('`{0}` unloaded successfully.'.format(name))
         else:
-            await self.liara.say('Unable to unload; that cog isn\'t loaded.')
+            await ctx.send('Unable to unload; that cog isn\'t loaded.')
 
     @commands.command()
     @checks.is_owner()
-    async def reload(self, name: str):
+    async def reload(self, ctx, name: str):
         """Reloads a cog."""
         cog_name = 'cogs.{0}'.format(name)
         if cog_name in list(self.liara.extensions):
@@ -352,12 +353,12 @@ class Core:
             importlib.reload(cog)
             self.liara.unload_extension(cog_name)
             self.liara.load_extension(cog_name)
-            await self.liara.say('`{0}` reloaded successfully.\nLast modified at: `{1}`'
-                                 .format(name, datetime.datetime.fromtimestamp(os.path.getmtime(cog.__file__))))
+            await ctx.send('`{0}` reloaded successfully.\nLast modified at: `{1}`'
+                           .format(name, datetime.datetime.fromtimestamp(os.path.getmtime(cog.__file__))))
         else:
-            await self.liara.say('Unable to reload, that cog isn\'t loaded.')
+            await ctx.send('Unable to reload, that cog isn\'t loaded.')
 
-    @commands.command(pass_context=True, hidden=True, aliases=['debug'])
+    @commands.command(hidden=True, aliases=['debug'])
     @checks.is_owner()
     async def eval(self, ctx, *, code: str):
         """Evaluates Python code."""
@@ -369,7 +370,7 @@ class Core:
             'ctx': ctx,
             'message': ctx.message,
             'channel': ctx.message.channel,
-            'server': ctx.message.server,
+            'guild': ctx.message.guild,
             'author': ctx.message.author
         }
 
@@ -378,12 +379,12 @@ class Core:
             output = await output
 
         try:
-            await self.liara.say('```py\n{0}\n```'.format(output))
+            await ctx.send('```py\n{0}\n```'.format(output))
         except discord.HTTPException:
-            await self.liara.type()
+            await ctx.trigger_typing()
             gist = await self.create_gist(output)
-            await self.liara.say('Sorry, that output was too large, so I uploaded it to gist instead.\n'
-                                 '{0}'.format(gist['html_url']))
+            await ctx.send('Sorry, that output was too large, so I uploaded it to gist instead.\n'
+                           '{0}'.format(gist['html_url']))
 
 
 def setup(liara):
