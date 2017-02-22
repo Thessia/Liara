@@ -37,7 +37,7 @@ class Sentry:
         try:
             raise _exception
         except:
-            self.client.captureException(data={'message': message.content}, extra={'server_id': message.server.id,
+            self.client.captureException(data={'message': message.content}, extra={'guild_id': message.guild.id,
                                                                                    'channel_id': message.channel.id,
                                                                                    'message_id': message.id})
 
