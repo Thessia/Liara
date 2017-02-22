@@ -24,6 +24,8 @@ class Sentry:
             return
         if self.settings['dsn'] is None:
             return
+        if context.command is self.liara.get_command('eval'):
+            return
         try:
             self.client.set_dsn(self.settings['dsn'])
         except InvalidDsn:
