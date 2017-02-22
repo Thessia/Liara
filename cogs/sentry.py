@@ -13,9 +13,11 @@ class Sentry:
         self.settings = dataIO.load_json('sentry')
         if 'dsn' not in self.settings:
             self.settings['dsn'] = None
-        self.client = SentryClient(site=liara.user.id)
+        self.client = None
 
     async def on_command_error(self, exception, context):
+        if self.client is None:
+            self.client = SentryClient(site=self.liara.user.id)
         if isinstance(exception, commands_errors.MissingRequiredArgument):
             return
         if isinstance(exception, commands_errors.CommandNotFound):
@@ -41,18 +43,20 @@ class Sentry:
 
     @commands.command()
     @checks.is_owner()
-    async def set_sentry(self, dsn=None):
+    async def set_sentry(self, ctx, dsn=None):
         """Sets the DSN for Sentry."""
+        if self.client is None:
+            self.client = SentryClient(site=self.liara.user.id)
         try:
             self.client.set_dsn(dsn)
         except InvalidDsn:
-            await self.liara.say('That DSN is invalid.')
+            await ctx.send('That DSN is invalid.')
             return
         self.settings['dsn'] = dsn
         if dsn is None:
-            await self.liara.say('DSN cleared.')
+            await ctx.send('DSN cleared.')
         else:
-            await self.liara.say('DSN successfully set! All your exceptions will now be logged to Sentry.')
+            await ctx.send('DSN successfully set! All your exceptions will now be logged to Sentry.')
             self.client.captureMessage('Hello, world!')
 
 
