@@ -8,7 +8,7 @@ class Moderation:
     def __init__(self, liara):
         self.liara = liara
 
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(no_pm=True)
     async def userinfo(self, ctx, user: discord.Member=None):
         """Shows you a user's info.
 
@@ -51,11 +51,11 @@ class Moderation:
                 embed.add_field(name='Roles', value=', '.join(roles))
         embed.set_thumbnail(url=avatar_url.replace('size=1024', 'size=256'))
         try:
-            await self.liara.say(embed=embed)
+            await ctx.send(embed=embed)
         except discord.HTTPException:
-            await self.liara.say('Unable to post userinfo, please allow the Embed Links permission')
+            await ctx.send('Unable to post userinfo, please allow the Embed Links permission')
 
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(no_pm=True)
     async def serverinfo(self, ctx):
         """Shows you the server's info."""
         server = ctx.message.server
@@ -101,44 +101,43 @@ class Moderation:
         embed.set_footer(text='Created on')
 
         try:
-            await self.liara.say(embed=embed)
+            await ctx.send(embed=embed)
         except discord.HTTPException:
-            await self.liara.say('Unable to post serverinfo, please allow the Embed Links permission')
+            await ctx.send('Unable to post serverinfo, please allow the Embed Links permission')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(ban_members=True)
-    async def ban(self, member: discord.Member):
+    async def ban(self, ctx, member: discord.Member):
         """Bans a member."""
         try:
-            await self.liara.ban(member)
-            await self.liara.say('Done. Good riddance.')
+            await member.ban()
+            await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to ban that person here.')
+            await ctx.send('Sorry, I don\'t have permission to ban that person here.')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(kick_members=True)
-    async def softban(self, member: discord.Member, days_to_clean: int=1):
+    async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Kicks a member, removing all their messages in the process."""
-        if not 0 <= days_to_clean <= 7:
-            await self.liara.say('Invalid clean value. Use a number from 0 to 7 (days).')
+        if not 0 < days_to_clean <= 7:
+            await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
         try:
-            await self.liara.ban(member, days_to_clean)
-            await self.liara.unban(member)
-            await self.liara.say('Done. Good riddance.')
+            await member.ban(delete_message_days=days_to_clean)
+            await member.unban()
+            await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to ban that person here.')
+            await ctx.send('Sorry, I don\'t have permission to ban that person here.')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(kick_members=True)
-    async def kick(self, member: discord.Member):
+    async def kick(self, ctx, member: discord.Member):
         """Kicks a member."""
         try:
-            await self.liara.ban(member)
-            await self.liara.unban(member)
-            await self.liara.say('Done. Good riddance.')
+            await member.kick()
+            await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
-            await self.liara.say('Sorry, I don\'t have permission to kick that person here.')
+            await ctx.send('Sorry, I don\'t have permission to kick that person here.')
 
 
 def setup(liara):
