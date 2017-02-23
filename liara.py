@@ -67,6 +67,10 @@ async def send_cmd_help(ctx):
 
 
 if __name__ == '__main__':
+    # Kick out old users who are still on stable
+    if 'clean_content' not in dir(commands):
+        raise ImportError('Liara now runs on the discord.py rewrite!\nPlease update your discord.py to rewrite.')
+
     # Get defaults for argparse
     help_description = os.environ.get('LIARA_HELP', 'Liara, an open-source Discord bot written by Pandentia and '
                                                     'contributors\n'
