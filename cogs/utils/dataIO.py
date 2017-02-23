@@ -1,6 +1,7 @@
 import redis_collections
 import threading
 import time
+# noinspection PyUnresolvedReferences
 import __main__
 
 
@@ -10,18 +11,32 @@ class RedisDict(redis_collections.Dict):
         self.die = False
         self.thread = threading.Thread(target=self.update_loop, daemon=True, name=kwargs['key'])
         self.thread.start()
+        self.rthread = threading.Thread(target=self.refresh_loop, daemon=True, name=kwargs['key'])
+        self.rthread.start()
         self.prev = None
+        db = str(self.redis.connection_pool.connection_kwargs['db'])
+        self.pubsub_format = 'liara.{}.{}'.format(db, kwargs['key'])
 
     def update_loop(self):
         time.sleep(2)
         while not self.die:
-            if self.prev != repr(self):
-                self.prev = repr(self)
+            if self.prev != str(self.cache):
+                self.prev = str(self.cache)
                 self.sync()
-                time.sleep(0.1)
+                self.redis.publish(self.pubsub_format, 'update')
+                time.sleep(0.01)
             else:
+                time.sleep(0.01)
+
+    def refresh_loop(self):
+        time.sleep(2)
+        pubsub = self.redis.pubsub()
+        pubsub.subscribe([self.pubsub_format])
+        for message in pubsub.listen():
+            if message['type'] == 'message':
                 self.cache.clear()
-                time.sleep(0.1)
+                self.cache = dict(self)
+                self.prev = str(self.cache)
 
 
 class dataIO:
