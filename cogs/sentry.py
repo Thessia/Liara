@@ -22,6 +22,8 @@ class Sentry:
             return
         if isinstance(exception, commands_errors.CommandNotFound):
             return
+        if isinstance(exception, commands_errors.BadArgument):
+            return
         if self.settings['dsn'] is None:
             return
         if context.command is self.liara.get_command('eval'):

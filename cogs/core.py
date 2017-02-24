@@ -154,6 +154,9 @@ class Core:
     async def on_command_error(self, exception, context):
         if isinstance(exception, commands_errors.MissingRequiredArgument):
             await self.liara.send_command_help(context)
+        elif isinstance(exception, commands_errors.BadArgument):
+            await context.send('Bad argument.')
+            await self.liara.send_command_help(context)
         elif isinstance(exception, commands_errors.CommandInvokeError):
             exception = exception.original
             _traceback = traceback.format_tb(exception.__traceback__)
@@ -210,7 +213,7 @@ class Core:
     @set_cmd.command()
     @checks.is_owner()
     @checks.is_bot_account()
-    async def owner(self, ctx, *owners: discord.User):
+    async def owner(self, ctx, *owners: discord.Member):
         """Sets Liara's owners."""
         self.settings['owners'] = [str(x.id) for x in list(owners)]
         if len(list(owners)) == 1:
