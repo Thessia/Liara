@@ -95,61 +95,62 @@ class Core:
                 return await response.json()
 
     async def on_message(self, message):
-        if not self.liara.lockdown:
-            if str(message.author.id) in self.liara.owners:  # *always* process owner and server owner commands
+        if self.liara.lockdown:
+            return
+        if str(message.author.id) in self.liara.owners:  # *always* process owner and server owner commands
+            await self.liara.process_commands(message)
+            return
+        if isinstance(message.author, discord.Member):
+            if message.guild.owner == message.author:
                 await self.liara.process_commands(message)
                 return
-            if isinstance(message.author, discord.Member):
-                if message.guild.owner == message.author:
+            guild = str(message.guild.id)
+            try:
+                roles = [x.name.lower() for x in message.author.roles]
+                if self.liara.settings['roles'][guild]['admin_role'].lower() in roles:
                     await self.liara.process_commands(message)
                     return
-                guild = str(message.guild.id)
-                try:
-                    roles = [x.name.lower() for x in message.author.roles]
-                    if self.liara.settings['roles'][guild]['admin_role'].lower() in roles:
+            except KeyError or AttributeError:
+                pass
+            if guild in self.settings['ignores']:
+                if self.settings['ignores'][guild]['server_ignore']:
+                    return
+                if message.channel.id in self.settings['ignores'][guild]['ignored_channels']:
+                    return
+        # Overrides start here (yay)
+        for override in self.global_preconditions_overrides:
+            # noinspection PyBroadException
+            try:
+                if inspect.isawaitable(override):
+                    out = await override(message)
+                    if out is True:
                         await self.liara.process_commands(message)
                         return
-                except KeyError or AttributeError:
-                    pass
-                if guild in self.settings['ignores']:
-                    if self.settings['ignores'][guild]['server_ignore']:
+                else:
+                    if override(message) is True:
+                        await self.liara.process_commands(message)
                         return
-                    if message.channel.id in self.settings['ignores'][guild]['ignored_channels']:
+            except:
+                self.logger.warning('Removed precondition override "{0}", it was malfunctioning.'
+                                    .format(override.__name__))
+                self.global_preconditions_overrides.remove(override)
+        # Preconditions
+        for precondition in self.global_preconditions:
+            # noinspection PyBroadException
+            try:
+                if inspect.isawaitable(precondition):
+                    out = await precondition(message)
+                    if out is False:
                         return
-            # Overrides start here (yay)
-            for override in self.global_preconditions_overrides:
-                # noinspection PyBroadException
-                try:
-                    if inspect.isawaitable(override):
-                        out = await override(message)
-                        if out is True:
-                            await self.liara.process_commands(message)
-                            return
-                    else:
-                        if override(message) is True:
-                            await self.liara.process_commands(message)
-                            return
-                except:
-                    self.logger.warning('Removed precondition override "{0}", it was malfunctioning.'
-                                        .format(override.__name__))
-                    self.global_preconditions_overrides.remove(override)
-            # Preconditions
-            for precondition in self.global_preconditions:
-                # noinspection PyBroadException
-                try:
-                    if inspect.isawaitable(precondition):
-                        out = await precondition(message)
-                        if out is False:
-                            return
-                    else:
-                        if precondition(message) is False:
-                            return
-                except:
-                    self.logger.warning('Removed precondition "{0}", it was malfunctioning.'
-                                        .format(precondition.__name__))
-                    self.global_preconditions.remove(precondition)
+                else:
+                    if precondition(message) is False:
+                        return
+            except:
+                self.logger.warning('Removed precondition "{0}", it was malfunctioning.'
+                                    .format(precondition.__name__))
+                self.global_preconditions.remove(precondition)
 
-            await self.liara.process_commands(message)
+        await self.liara.process_commands(message)
 
     async def on_command_error(self, exception, context):
         if isinstance(exception, commands_errors.MissingRequiredArgument):
