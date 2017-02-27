@@ -213,7 +213,7 @@ class Core:
     # noinspection PyTypeChecker
     @set_cmd.command()
     @checks.is_owner()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def owner(self, ctx, *owners: discord.Member):
         """Sets Liara's owners."""
         self.settings['owners'] = [str(x.id) for x in list(owners)]
@@ -224,7 +224,7 @@ class Core:
 
     @set_cmd.command(no_pm=True)
     @checks.admin_or_permissions()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def admin(self, ctx, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive."""
@@ -243,7 +243,7 @@ class Core:
 
     @set_cmd.command(no_pm=True)
     @checks.admin_or_permissions()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def moderator(self, ctx, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive."""
@@ -267,14 +267,14 @@ class Core:
 
     @set_cmd.group(name='ignore', invoke_without_command=True)
     @checks.admin_or_permissions()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def ignore_cmd(self, ctx):
         """Helps you ignore/unignore servers/channels."""
         await self.liara.send_cmd_help(ctx)
 
     @ignore_cmd.command()
     @checks.admin_or_permissions()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel."""
         self._ignore_check(ctx)
@@ -291,7 +291,7 @@ class Core:
 
     @ignore_cmd.command()
     @checks.admin_or_permissions()
-    @checks.is_bot_account()
+    @checks.is_not_selfbot()
     async def server(self, ctx, state: bool):
         """Ignores/unignores the current server."""
         self._ignore_check(ctx)
