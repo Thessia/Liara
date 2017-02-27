@@ -44,50 +44,56 @@ class Moderation:
         embed.add_field(name='Join Dates', value='**This server**: {} ago ({})\n**Discord**: {} ago ({})'
                         .format(join_delta, member.joined_at, created_delta, member.created_at))
 
-        roles = [x.mention for x in sorted(member.roles, key=lambda role: role.position) if not x.is_everyone]
+        roles = [x.mention for x in sorted(member.roles, key=lambda role: role.position) if not x.is_default()]
         roles.reverse()  # just so it shows up like it does in the official Discord UI
         if roles:  # only show roles if the member has any
             if len(str(roles)) < 1025:  # deal with limits
                 embed.add_field(name='Roles', value=', '.join(roles))
         embed.set_thumbnail(url=avatar_url.replace('size=1024', 'size=256'))
-        try:
-            await ctx.send(embed=embed)
-        except discord.HTTPException:
-            await ctx.send('Unable to post userinfo, please allow the Embed Links permission')
+
+        if ctx.channel.permissions_for(ctx.guild.me).embed_links:
+            if ctx.author.id == self.liara.user.id:
+                await ctx.message.edit(embed=embed)
+            else:
+                await ctx.send(embed=embed)
+        else:
+            await ctx.send('Unable to post userinfo, please allow the Embed Links permission.')
 
     @commands.command(no_pm=True)
     async def serverinfo(self, ctx):
         """Shows you the server's info."""
-        server = ctx.message.server
+        guild = ctx.guild
 
-        if server.large:
-            await self.liara.request_offline_members(server)
+        if guild.large:
+            await self.liara.request_offline_members(guild)
 
         embed = discord.Embed()
-        embed.title = str(server)
-        if server.icon_url is not None:
-            embed.description = '**ID**: {0.id}\n[Icon URL]({0.icon_url})'.format(server)
-            embed.set_thumbnail(url=server.icon_url)
+        embed.title = str(guild)
+        if guild.icon_url is not None:
+            embed.description = '**ID**: {0.id}\n[Icon URL]({0.icon_url})'.format(guild)
+            embed.set_thumbnail(url=guild.icon_url)
         else:
-            embed.description = '**ID**: {0.id}'.format(server)
+            embed.description = '**ID**: {0.id}'.format(guild)
 
-        embed.add_field(name='Members', value=str(len(server.members)))
+        embed.add_field(name='Members', value=str(len(guild.members)))
 
-        roles = [x.mention for x in server.role_hierarchy if not x.is_everyone]
+        roles = [x.mention for x in guild.role_hierarchy if not x.is_default()]
         if roles:  # only show roles if the server has any
-            if len(str(roles)) < 1025:  # deal with limits
-                embed.add_field(name='Roles', value=', '.join(roles))
+            roles = ', '.join(roles)
+            if len(roles) <= 1024:  # deal with limits
+                embed.add_field(name='Roles', value=roles)
 
-        channels = [x[1] for x in sorted([(x.position, x.mention) for x in server.channels if x.type ==
-                    discord.ChannelType.text])]
-        if len(str(channels)) < 1025:
-            embed.add_field(name='Text channels', value=', '.join(channels))
+        channels = [x[1] for x in sorted([(x.position, x.mention) for x in guild.channels if
+                                          isinstance(x, discord.TextChannel)])]
+        channels = ', '.join(channels)
+        if len(channels) <= 1024:
+            embed.add_field(name='Text channels', value=channels)
 
-        if server.verification_level == discord.VerificationLevel.none:
+        if guild.verification_level == discord.VerificationLevel.none:
             level = 'Off'
-        elif server.verification_level == discord.VerificationLevel.low:
+        elif guild.verification_level == discord.VerificationLevel.low:
             level = 'Low'
-        elif server.verification_level == discord.VerificationLevel.medium:
+        elif guild.verification_level == discord.VerificationLevel.medium:
             level = 'Medium'
         else:
             level = '(╯°□°）╯︵ ┻━┻'
@@ -95,15 +101,19 @@ class Moderation:
         embed.add_field(name='Other miscellaneous info', value='**AFK Channel**: {0.afk_channel}\n'
                                                                '**AFK Timeout**: {0.afk_timeout} seconds\n'
                                                                '**Owner**: {0.owner.mention}\n'
-                                                               '**Verification level**: {1}'.format(server, level))
+                                                               '**Region**: `{0.region.value}`\n'
+                                                               '**Verification level**: {1}'.format(guild, level))
 
-        embed.timestamp = server.created_at
+        embed.timestamp = guild.created_at
         embed.set_footer(text='Created on')
 
-        try:
-            await ctx.send(embed=embed)
-        except discord.HTTPException:
-            await ctx.send('Unable to post serverinfo, please allow the Embed Links permission')
+        if ctx.channel.permissions_for(ctx.guild.me).embed_links:
+            if ctx.author.id == self.liara.user.id:
+                await ctx.message.edit(embed=embed)
+            else:
+                await ctx.send(embed=embed)
+        else:
+            await ctx.send('Unable to post serverinfo, please allow the Embed Links permission.')
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(ban_members=True)
