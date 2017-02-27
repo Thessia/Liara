@@ -29,6 +29,7 @@ class Liara(commands.Bot):
         self.invite_url = None  # this too
         self.send_cmd_help = send_cmd_help
         self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
+        self.self_bot = options.get('self_bot', False)
         try:
             loader = self.settings['loader']
             self.load_extension('cogs.' + loader)
@@ -49,8 +50,10 @@ class Liara(commands.Bot):
             self.invite_url = dutils.oauth_url(app_info.id)
             self.logger.info('Invite URL: {0}'.format(self.invite_url))
             self.owner = app_info.owner
-        else:
+        elif self.self_bot:
             self.owner = self.user
+        else:
+            self.owner = self.get_user(self.args.userbot)
 
     async def on_message(self, message):
         pass
@@ -103,6 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--description', type=str, help='modify the bot description shown in the help command',
                         default=help_description)
     parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
+    parser.add_argument('--userbot', help='enables userbot mode, with the specified owner ID', type=int, default=None)
     parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
     parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
     shard_grp = parser.add_argument_group('sharding')
@@ -121,6 +125,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.token is None:
+        exit(parser.print_usage())
+
+    if args.userbot is None:
+        userbot = False
+    else:
+        userbot = True
+
+    if args.selfbot and userbot:
         exit(parser.print_usage())
 
     # Logging starts here
@@ -179,7 +191,7 @@ if __name__ == '__main__':
         exit(2)
 
     async def run_bot():
-        await liara.login(args.token, bot=not args.selfbot)
+        await liara.login(args.token, bot=not (args.selfbot or userbot))
         await liara.connect()
 
 
