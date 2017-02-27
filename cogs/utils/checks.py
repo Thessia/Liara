@@ -18,6 +18,12 @@ def is_bot_account():
     return commands.check(predicate)
 
 
+def is_not_bot_account():
+    def predicate(ctx):
+        return ctx.bot.user.bot
+    return commands.check(predicate)
+
+
 def is_selfbot():
     def predicate(ctx):
         return ctx.bot.args.selfbot
