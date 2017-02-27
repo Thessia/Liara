@@ -149,6 +149,27 @@ class Moderation:
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to kick that person here.')
 
+    @commands.command(no_pm=True)
+    @checks.is_not_bot_account()
+    @checks.is_owner()
+    async def block(self, ctx, member: discord.Member):
+        """Blocks a member."""
+        await member.block()
+        await ctx.send('Goodbye, {}.'.format(member.mention))
+
+    @commands.command(no_pm=True)
+    @checks.is_not_bot_account()
+    @checks.is_owner()
+    async def unblock(self, ctx, member: discord.Member):
+        if member.relationship is None:
+            await ctx.send('That user isn\'t blocked.')
+            return
+        if member.relationship.type.name != 'blocked':
+            await ctx.send('That user isn\'t blocked.')
+            return
+        await member.unblock()
+        await ctx.send('Welcome back, {}.'.format(member.mention))
+
 
 def setup(liara):
     liara.add_cog(Moderation(liara))
