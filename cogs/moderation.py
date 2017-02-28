@@ -164,6 +164,7 @@ class Moderation:
     @checks.is_not_bot_account()
     @checks.is_owner()
     async def unblock(self, ctx, member: discord.Member):
+        """Unblocks a member."""
         if not member.is_blocked():
             await ctx.send('That user isn\'t blocked.')
             return
