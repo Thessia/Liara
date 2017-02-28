@@ -154,6 +154,9 @@ class Moderation:
     @checks.is_owner()
     async def block(self, ctx, member: discord.Member):
         """Blocks a member."""
+        if member.is_blocked():
+            await ctx.send('That user is already blocked.')
+            return
         await member.block()
         await ctx.send('Goodbye, {}.'.format(member.mention))
 
@@ -161,10 +164,7 @@ class Moderation:
     @checks.is_not_bot_account()
     @checks.is_owner()
     async def unblock(self, ctx, member: discord.Member):
-        if member.relationship is None:
-            await ctx.send('That user isn\'t blocked.')
-            return
-        if member.relationship.type.name != 'blocked':
+        if not member.is_blocked():
             await ctx.send('That user isn\'t blocked.')
             return
         await member.unblock()
