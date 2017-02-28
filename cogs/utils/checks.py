@@ -20,7 +20,7 @@ def is_bot_account():
 
 def is_not_bot_account():
     def predicate(ctx):
-        return ctx.bot.user.bot
+        return not ctx.bot.user.bot
     return commands.check(predicate)
 
 
