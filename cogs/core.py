@@ -12,6 +12,7 @@ import discord.errors
 import asyncio
 import random
 import json
+import textwrap
 
 
 class Core:
@@ -23,6 +24,7 @@ class Core:
         self.liara.loop.create_task(self.post())
         self.global_preconditions = []  # preconditions to message processing
         self.global_preconditions_overrides = []  # overrides to the preconditions
+        self._eval = {'env': {}, 'count': 0}
 
     def __unload(self):
         self.settings.die = True
@@ -367,7 +369,7 @@ class Core:
     async def eval(self, ctx, *, code: str):
         """Evaluates Python code."""
 
-        environment = {
+        self._eval['env'].update({
             'bot': self.liara,
             'client': self.liara,
             'liara': self.liara,
@@ -375,15 +377,33 @@ class Core:
             'message': ctx.message,
             'channel': ctx.message.channel,
             'guild': ctx.message.guild,
-            'author': ctx.message.author
-        }
+            'author': ctx.message.author,
+        })
 
-        output = eval(code, environment)
-        if inspect.isawaitable(output):
-            output = await output
+        _code = """async def func(self):
+          try:
+        {}
+          finally:
+            self._eval['env'].update(locals())""".format(textwrap.indent(code, '    '))
+
+        exec(_code, self._eval['env'])
+
+        func = self._eval['env']['func']
+        output = await func(self)
+
+        self._eval['count'] += 1
+        count = self._eval['count']
+        message = '```diff\n+ In [{}]:\n``````py\n{}\n```'.format(count, code)
+
+        if output is not None:
+            output = repr(output)
+            message += '\n```diff\n- Out[{}]:\n``````py\n{}\n```'.format(count, output)
 
         try:
-            await ctx.send('```py\n{0}\n```'.format(output))
+            if ctx.author.id == self.liara.user.id:
+                await ctx.message.edit(content=message)
+            else:
+                await ctx.send(message)
         except discord.HTTPException:
             await ctx.trigger_typing()
             gist = await self.create_gist(output)
