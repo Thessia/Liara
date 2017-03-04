@@ -13,6 +13,7 @@ import asyncio
 import random
 import json
 import textwrap
+import time
 
 
 class Core:
@@ -380,9 +381,15 @@ class Core:
             'author': ctx.message.author,
         })
 
+        # let's make this safe to work with
+        print(code)
+        code = code.replace('```py\n', '').replace('```', '').replace('`', '')
+        print(code)
+
         _code = 'async def func(self):\n  try:\n{}\n  finally:\n    self._eval[\'env\'].update(locals())'\
             .format(textwrap.indent(code, '    '))
 
+        before = time.monotonic()
         # noinspection PyBroadException
         try:
             exec(_code, self._eval['env'])
@@ -394,6 +401,7 @@ class Core:
                 output = repr(output)
         except Exception as e:
             output = '{}: {}'.format(type(e).__name__, e)
+        after = time.monotonic()
 
         self._eval['count'] += 1
         count = self._eval['count']
@@ -401,6 +409,8 @@ class Core:
 
         if output is not None:
             message += '\n```diff\n- Out[{}]:\n``````py\n{}\n```'.format(count, output)
+
+        message += '\n*{}ms*'.format(round((after - before) * 1000))
 
         try:
             if ctx.author.id == self.liara.user.id:
