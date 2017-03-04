@@ -383,17 +383,23 @@ class Core:
         _code = 'async def func(self):\n  try:\n{}\n  finally:\n    self._eval[\'env\'].update(locals())'\
             .format(textwrap.indent(code, '    '))
 
-        exec(_code, self._eval['env'])
+        # noinspection PyBroadException
+        try:
+            exec(_code, self._eval['env'])
 
-        func = self._eval['env']['func']
-        output = await func(self)
+            func = self._eval['env']['func']
+            output = await func(self)
+
+            if output is not None:
+                output = repr(output)
+        except Exception as e:
+            output = '{}: {}'.format(type(e).__name__, e)
 
         self._eval['count'] += 1
         count = self._eval['count']
         message = '```diff\n+ In [{}]:\n``````py\n{}\n```'.format(count, code)
 
         if output is not None:
-            output = repr(output)
             message += '\n```diff\n- Out[{}]:\n``````py\n{}\n```'.format(count, output)
 
         try:
