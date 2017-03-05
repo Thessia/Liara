@@ -37,7 +37,7 @@ class Moderation:
                             .format(member, avatar_url)
 
         if member.game is not None:
-            embed.description += '\n**Game**: {}'.format(member.game.name)
+            embed.description += '\n**Game**: {}'.format(member.game)
 
         join_delta = datetime.datetime.utcnow() - member.joined_at
         created_delta = datetime.datetime.utcnow() - member.created_at
