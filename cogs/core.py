@@ -419,7 +419,7 @@ class Core:
                 await ctx.send(message)
         except discord.HTTPException:
             await ctx.trigger_typing()
-            gist = await self.create_gist(output)
+            gist = await self.create_gist(message.replace('``````', '```\n```'), filename='message.md')
             await ctx.send('Sorry, that output was too large, so I uploaded it to gist instead.\n'
                            '{0}'.format(gist['html_url']))
 
