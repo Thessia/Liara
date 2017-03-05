@@ -36,7 +36,7 @@ class Useful:
             delta = (after - before) * 1000
             values.append(int(delta))
             await asyncio.sleep(0.5)
-        await self.liara.delete_message(please_wait_message)
+        await please_wait_message.delete()
         average = round(sum(values) / len(values))
         await ctx.send('Average ping time over {} pings: `{}ms`\nMin/Max ping time: `{}ms/{}ms`'
                        .format(amount, average, min(values), max(values)))
