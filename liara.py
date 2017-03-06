@@ -194,7 +194,6 @@ if __name__ == '__main__':
         await liara.login(args.token, bot=not (args.selfbot or userbot))
         await liara.connect()
 
-
     # noinspection PyBroadException
     def run_app():
         loop = asyncio.get_event_loop()
