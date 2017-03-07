@@ -175,7 +175,7 @@ class Core:
     @checks.admin_or_permissions()
     async def set_cmd(self, ctx):
         """Sets Liara's settings."""
-        await self.liara.send_cmd_help(ctx)
+        await self.liara.send_command_help(ctx)
 
     @set_cmd.command()
     @checks.is_owner()
@@ -184,7 +184,7 @@ class Core:
         prefixes = list(prefixes)
 
         if not prefixes:
-            await self.liara.send_cmd_help(ctx)
+            await self.liara.send_command_help(ctx)
             return
 
         self.liara.command_prefix = prefixes
@@ -273,7 +273,7 @@ class Core:
     @checks.is_not_selfbot()
     async def ignore_cmd(self, ctx):
         """Helps you ignore/unignore servers/channels."""
-        await self.liara.send_cmd_help(ctx)
+        await self.liara.send_command_help(ctx)
 
     @ignore_cmd.command()
     @checks.admin_or_permissions()
