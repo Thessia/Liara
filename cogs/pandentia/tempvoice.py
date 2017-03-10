@@ -22,7 +22,7 @@ class TemporaryVoice:
 
     @staticmethod
     async def create_channel(member: discord.Member):
-        guild: discord.Guild = member.guild
+        guild = member.guild
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(connect=False),
             member: discord.PermissionOverwrite(connect=True, manage_roles=True)
@@ -32,7 +32,7 @@ class TemporaryVoice:
         await member.move_to(channel)
 
     async def on_voice_state_update(self, member, *_):
-        guild: discord.Guild = member.guild
+        guild = member.guild
         if guild is None:
             return  # /shrug
         if self.config.get(guild.id) is None:
