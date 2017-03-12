@@ -11,6 +11,7 @@ class TemporaryVoice:
         self.liara = liara
         self.config = dataIO.load_json('pandentia.tempvoice')
         self.config_default = {'channel': None, 'limit': 0}
+        self.tracked_channels = set()
 
     @staticmethod
     def filter(channels):
@@ -20,15 +21,15 @@ class TemporaryVoice:
                 _channels.append(channel)
         return _channels
 
-    @staticmethod
-    async def create_channel(member: discord.Member):
+    async def create_channel(self, member: discord.Member):
         guild = member.guild
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(connect=False),
-            member: discord.PermissionOverwrite(connect=True, manage_roles=True)
+            member: discord.PermissionOverwrite(connect=True, manage_channel=True, manage_roles=True)
         }
         channel = await guild.create_voice_channel(('\U0001d173' * 3 + '{}\'s Channel'.format(member.name))[0:32],
                                                    overwrites=overwrites)
+        self.tracked_channels.add(channel.id)
         await member.move_to(channel)
 
     async def on_voice_state_update(self, member, *_):
@@ -53,8 +54,15 @@ class TemporaryVoice:
             if len(channel.members) == 0:
                 try:
                     await channel.delete()
-                except discord.NotFound:
+                    self.tracked_channels.remove(channel.id)
+                except discord.NotFound or KeyError:
                     pass
+
+    async def on_channel_update(self, before, after):
+        if before.id not in self.tracked_channels:
+            return
+        if before.name != after.name:
+            await after.edit(name=before.name)
 
     @commands.command()
     @checks.mod_or_permissions(manage_channels=True)
