@@ -25,7 +25,7 @@ class TemporaryVoice:
         guild = member.guild
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(connect=False),
-            member: discord.PermissionOverwrite(connect=True, manage_channel=True, manage_roles=True)
+            member: discord.PermissionOverwrite(connect=True, manage_channels=True, manage_roles=True)
         }
         channel = await guild.create_voice_channel(('\U0001d173' * 3 + '{}\'s Channel'.format(member.name))[0:32],
                                                    overwrites=overwrites)
