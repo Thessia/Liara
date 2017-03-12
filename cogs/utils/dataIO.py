@@ -1,6 +1,7 @@
 import redis_collections
 import threading
 import time
+import json
 # noinspection PyUnresolvedReferences
 import __main__
 
@@ -23,7 +24,8 @@ class RedisDict(redis_collections.Dict):
             if self.prev != str(self.cache):
                 self.prev = str(self.cache)
                 self.sync()
-                self.redis.publish(self.pubsub_format, 'update')
+                self.redis.publish(self.pubsub_format, json.dumps({
+                    'shard': __main__.liara.shard_id, 'msg': 'update!'}))
                 time.sleep(0.01)
             else:
                 time.sleep(0.01)
@@ -33,10 +35,16 @@ class RedisDict(redis_collections.Dict):
         pubsub = self.redis.pubsub()
         pubsub.subscribe([self.pubsub_format])
         for message in pubsub.listen():
-            if message['type'] == 'message':
-                self.cache.clear()
-                self.cache = dict(self)
-                self.prev = str(self.cache)
+            if message['type'] != 'message':
+                continue
+            data = json.loads(message['data'].decode())
+            if data['shard'] == __main__.liara.shard_id:
+                continue
+            if data['msg'] != 'update!':
+                continue
+            self.cache.clear()
+            self.cache = dict(self)
+            self.prev = str(self.cache)
 
 
 class dataIO:
