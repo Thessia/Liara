@@ -213,5 +213,5 @@ if __name__ == '__main__':
 
     # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
     liara = Liara('!', shard_id=args.shard_id, shard_count=args.shard_count, description=args.description,
-                  self_bot=args.selfbot)
+                  self_bot=args.selfbot, pm_help=None)
     exit(run_app())
