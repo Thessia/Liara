@@ -117,10 +117,13 @@ class Moderation:
 
     @commands.command(no_pm=True)
     @checks.mod_or_permissions(ban_members=True)
-    async def ban(self, ctx, member: discord.Member):
+    async def ban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Bans a member."""
+        if not 0 <= days_to_clean <= 7:
+            await ctx.send('Invalid clean value. Use a number from 0 to 7.')
+            return
         try:
-            await member.ban()
+            await member.ban(delete_message_days=days_to_clean)
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
@@ -129,7 +132,7 @@ class Moderation:
     @checks.mod_or_permissions(kick_members=True)
     async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Kicks a member, removing all their messages in the process."""
-        if not 0 < days_to_clean <= 7:
+        if not 0 <= days_to_clean <= 7:
             await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
         try:
@@ -149,27 +152,27 @@ class Moderation:
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to kick that person here.')
 
-    @commands.command(no_pm=True)
-    @checks.is_not_bot_account()
-    @checks.is_owner()
-    async def block(self, ctx, member: discord.Member):
-        """Blocks a member."""
-        if member.is_blocked():
-            await ctx.send('That user is already blocked.')
-            return
-        await member.block()
-        await ctx.send('Goodbye, {}.'.format(member.mention))
-
-    @commands.command(no_pm=True)
-    @checks.is_not_bot_account()
-    @checks.is_owner()
-    async def unblock(self, ctx, member: discord.Member):
-        """Unblocks a member."""
-        if not member.is_blocked():
-            await ctx.send('That user isn\'t blocked.')
-            return
-        await member.unblock()
-        await ctx.send('Welcome back, {}.'.format(member.mention))
+    # @commands.command(no_pm=True)
+    # @checks.is_not_bot_account()
+    # @checks.is_owner()
+    # async def block(self, ctx, member: discord.Member):
+    #     """Blocks a member."""
+    #     if member.is_blocked():
+    #         await ctx.send('That user is already blocked.')
+    #         return
+    #     await member.block()
+    #     await ctx.send('Goodbye, {}.'.format(member.mention))
+    #
+    # @commands.command(no_pm=True)
+    # @checks.is_not_bot_account()
+    # @checks.is_owner()
+    # async def unblock(self, ctx, member: discord.Member):
+    #     """Unblocks a member."""
+    #     if not member.is_blocked():
+    #         await ctx.send('That user isn\'t blocked.')
+    #         return
+    #     await member.unblock()
+    #     await ctx.send('Welcome back, {}.'.format(member.mention))
 
 
 def setup(liara):
