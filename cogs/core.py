@@ -25,7 +25,7 @@ class Core:
         self.liara.loop.create_task(self.post())
         self.global_preconditions = [self.ignore_preconditions]  # preconditions to message processing
         self.global_preconditions_overrides = [self.ignore_overrides]  # overrides to the preconditions
-        self._eval = {'env': {}, 'count': 0}
+        self._eval = {}
 
     def __unload(self):
         self.settings.die = True
@@ -194,7 +194,7 @@ class Core:
     @checks.is_owner()
     async def name(self, ctx, username: str):
         """Changes Liara's username."""
-        await self.liara.edit_profile(username=username)
+        await self.liara.user.edit(username=username)
         await ctx.send('Username changed. Please call me {0} from now on.'.format(username))
 
     @set_cmd.command()
@@ -207,7 +207,7 @@ class Core:
         response.close()
         await session.close()
         try:
-            await self.liara.edit_profile(avatar=avatar)
+            await self.liara.user.edit(avatar=avatar)
             await ctx.send('Avatar changed.')
         except discord.errors.InvalidArgument:
             await ctx.send('That image type is unsupported.')
@@ -368,6 +368,10 @@ class Core:
     @checks.is_owner()
     async def eval(self, ctx, *, code: str):
         """Evaluates Python code."""
+        if self._eval.get('env') is None:
+            self._eval['env'] = {}
+        if self._eval.get('count') is None:
+            self._eval['count'] = 0
 
         self._eval['env'].update({
             'bot': self.liara,
