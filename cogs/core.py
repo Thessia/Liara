@@ -399,15 +399,25 @@ class Core:
         except Exception as e:
             output = '{}: {}'.format(type(e).__name__, e)
         after = time.monotonic()
-
         self._eval['count'] += 1
         count = self._eval['count']
-        message = '```diff\n+ In [{}]:\n``````py\n{}\n```'.format(count, code)
 
+        code = code.split('\n')
+        if len(code) == 1:
+            _in = 'In [{}]: {}'.format(count, code[0])
+        else:
+            _first_line = code[0]
+            _rest = code[1:]
+            _rest = '\n'.join(_rest)
+            _countlen = len(str(count)) + 2
+            _rest = textwrap.indent(_rest, '...: ')
+            _rest = textwrap.indent(_rest, ' ' * _countlen)
+            _in = 'In [{}]: {}\n{}'.format(count, _first_line, _rest)
+
+        message = '```py\n{}'.format(_in)
         if output is not None:
-            message += '\n```diff\n- Out[{}]:\n``````py\n{}\n```'.format(count, output)
-
-        message += '\n*{}ms*'.format(round((after - before) * 1000))
+            message += '\nOut[{}]: {}'.format(count, output)
+        message += '\n# {}ms\n```'.format(int(round((after - before) * 1000)))
 
         try:
             if ctx.author.id == self.liara.user.id:
@@ -416,7 +426,7 @@ class Core:
                 await ctx.send(message)
         except discord.HTTPException:
             await ctx.trigger_typing()
-            gist = await self.create_gist(message.replace('``````', '```\n```'), filename='message.md')
+            gist = await self.create_gist(message, filename='message.md')
             await ctx.send('Sorry, that output was too large, so I uploaded it to gist instead.\n'
                            '{0}'.format(gist['html_url']))
 
