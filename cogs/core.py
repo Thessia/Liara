@@ -417,7 +417,11 @@ class Core:
         message = '```py\n{}'.format(_in)
         if output is not None:
             message += '\nOut[{}]: {}'.format(count, output)
-        message += '\n# {}ms\n```'.format(int(round((after - before) * 1000)))
+        ms = int(round((after - before) * 1000))
+        if ms > 100:  # noticeable delay
+            message += '\n# {} ms\n```'.format(ms)
+        else:
+            message += '\n```'
 
         try:
             if ctx.author.id == self.liara.user.id:
