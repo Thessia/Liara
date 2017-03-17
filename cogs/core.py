@@ -26,6 +26,7 @@ class Core:
         self.global_preconditions = [self.ignore_preconditions]  # preconditions to message processing
         self.global_preconditions_overrides = [self.ignore_overrides]  # overrides to the preconditions
         self._eval = {}
+        self.loop = None  # make pycharm stop complaining
 
     def __unload(self):
         self.settings.die = True
@@ -57,7 +58,6 @@ class Core:
             self.settings['roles'] = {}
         if 'ignores' not in self.settings:
             self.settings['ignores'] = {}
-        # noinspection PyAttributeOutsideInit
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
     async def maintenance_loop(self):
