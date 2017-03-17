@@ -61,9 +61,9 @@ class Liara(commands.Bot):
 
 async def send_cmd_help(ctx):
     if ctx.invoked_subcommand:
-        _help = await liara.formatter.format_help_for(ctx, ctx.invoked_subcommand)
+        _help = await ctx.bot.formatter.format_help_for(ctx, ctx.invoked_subcommand)
     else:
-        _help = await liara.formatter.format_help_for(ctx, ctx.command)
+        _help = await ctx.bot.formatter.format_help_for(ctx, ctx.command)
     for page in _help:
         # noinspection PyUnresolvedReferences
         await ctx.send(page)
