@@ -89,16 +89,25 @@ if __name__ == '__main__':
               'Please check that these can be converted to integers')
         exit(4)
 
+    shard_id = os.environ.get('LIARA_SHARD_ID', None)
+    shard_count = os.environ.get('LIARA_SHARD_COUNT', None)
     try:
-        shard_id = os.environ.get('LIARA_SHARD_ID', None)
         if shard_id is not None:
             shard_id = int(shard_id)
-        shard_count = os.environ.get('LIARA_SHARD_COUNT', None)
         if shard_count is not None:
             shard_count = int(shard_count)
     except ValueError:
         print('Error parsing environment variables LIARA_SHARD_ID or LIARA_SHARD_COUNT\n'
               'Please check that these can be converted to integers')
+        exit(4)
+
+    message_cache = os.environ.get('LIARA_MESSAGE_CACHE_COUNT', 5000)
+    try:
+        if message_cache is not None:
+            message_cache = int(message_cache)
+    except ValueError:
+        print('Error parsing environment variable LIARA_MESSAGE_CACHE_COUNT\n'
+              'Please check that this can be converted to an integer')
         exit(4)
 
     # Parse command-line arguments
@@ -108,6 +117,8 @@ if __name__ == '__main__':
     parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
     parser.add_argument('--userbot', help='enables userbot mode, with the specified owner ID', type=int, default=None)
     parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
+    parser.add_argument('--message_cache_count', help='sets the maximum amount of messages to cache in liara.messages',
+                        default=message_cache, type=int)
     parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
     shard_grp = parser.add_argument_group('sharding')
     # noinspection PyUnboundLocalVariable
@@ -213,5 +224,5 @@ if __name__ == '__main__':
 
     # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
     liara = Liara('!', shard_id=args.shard_id, shard_count=args.shard_count, description=args.description,
-                  self_bot=args.selfbot, pm_help=None)
+                  self_bot=args.selfbot, pm_help=None, max_messages=message_cache)
     exit(run_app())
