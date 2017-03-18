@@ -36,6 +36,28 @@ def is_not_selfbot():
     return commands.check(predicate)
 
 
+def is_main_shard():
+    def predicate(ctx):
+        if ctx.bot.shard_id is None:
+            return True
+        elif ctx.bot.shard_id == 0:
+            return True
+        else:
+            return False
+    return commands.check(predicate)
+
+
+def is_not_main_shard():
+    def predicate(ctx):
+        if ctx.bot.shard_id is None:
+            return False
+        elif ctx.bot.shard_id == 0:
+            return False
+        else:
+            return True
+    return commands.check(predicate)
+
+
 def mod_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
