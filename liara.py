@@ -13,6 +13,8 @@ import logging
 import os.path
 import tarfile
 import datetime
+import json
+import threading
 
 
 class Liara(commands.Bot):
@@ -30,12 +32,36 @@ class Liara(commands.Bot):
         self.send_cmd_help = send_cmd_help
         self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
         self.self_bot = options.get('self_bot', False)
+        self.pubsub = None
+        threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True).start()
         try:
             loader = self.settings['loader']
             self.load_extension('cogs.' + loader)
             self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
         except KeyError:
             self.load_extension('cogs.core')
+
+    def pubsub_loop(self):
+        self.pubsub = self.redis.pubsub()
+        db = str(self.redis.connection_pool.connection_kwargs['db'])
+        self.pubsub.subscribe('liara.{}.pubsub'.format(db))
+        for event in self.pubsub.listen():
+            if event['type'] != 'message':
+                continue
+            try:
+                _json = json.loads(event['data'].decode())
+                self.dispatch('liara_pubsub_raw_receive', _json)
+                if _json.get('shard_id', self.shard_id) == self.shard_id:
+                    continue
+                if _json.get('payload') is None:
+                    continue
+                self.dispatch('liara_pubsub_receive', _json['payload'])
+            except json.decoder.JSONDecodeError:
+                continue
+
+    def publish(self, payload):
+        db = str(self.redis.connection_pool.connection_kwargs['db'])
+        self.redis.publish('liara.{}.pubsub'.format(db), json.dumps({'shard_id': self.shard_id, 'payload': payload}))
 
     async def on_ready(self):
         self.lockdown = False

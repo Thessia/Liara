@@ -16,7 +16,7 @@ class RedisDict(redis_collections.Dict):
         self.rthread.start()
         self.prev = None
         db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.pubsub_format = 'liara.{}.{}'.format(db, kwargs['key'])
+        self.pubsub_format = 'liara.{}.data.{}'.format(db, kwargs['key'])
 
     def update_loop(self):
         time.sleep(2)
