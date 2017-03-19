@@ -206,7 +206,10 @@ if __name__ == '__main__':
     logger.addHandler(handler)
 
     discord_logger = logging.getLogger('discord')
-    discord_logger.setLevel(logging.INFO)
+    if args.debug:
+        discord_logger.setLevel(logging.DEBUG)
+    else:
+        discord_logger.setLevel(logging.INFO)
 
     handler = logging.FileHandler('logs/discord_{}.log'.format(now))
     handler.setFormatter(formatter)
