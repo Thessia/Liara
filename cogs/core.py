@@ -14,6 +14,8 @@ import random
 import json
 import textwrap
 import time
+import types
+import sys
 
 
 class Core:
@@ -47,7 +49,7 @@ class Core:
                 if cog not in list(self.liara.extensions):
                     # noinspection PyBroadException
                     try:
-                        self.liara.load_extension(cog)
+                        self.load_cog(cog)
                     except:
                         self.settings['cogs'].remove(cog)
                         self.logger.warning('{0} could not be loaded. This message will not be shown again.'
@@ -68,7 +70,7 @@ class Core:
                     if cog not in list(self.liara.extensions):
                         # noinspection PyBroadException
                         try:
-                            self.liara.load_extension(cog)
+                            self.load_cog(cog)
                         except:
                             self.settings['cogs'].remove(cog)  # something went wrong here
                             self.logger.warning('{0} could not be loaded. This message will not be shown again.'
@@ -117,6 +119,36 @@ class Core:
         async with aiohttp.ClientSession() as session:
             async with session.post('https://api.github.com/gists', data=json.dumps(github_file)) as response:
                 return await response.json()
+
+    def load_cog(self, name):
+        if name in self.liara.extensions:
+            return
+
+        if self.liara.shard_id is None or self.liara.shard_id == 0:
+            module = importlib.import_module(name)
+            importlib.reload(module)
+            del sys.modules[name]
+            if hasattr(module, '__file__'):
+                path = module.__file__
+                with open(path, 'rb') as f:
+                    self.liara.redis.set('cogfiles.{}'.format(name), f.read())
+            else:
+                raise discord.ClientException('Extension is not a file')
+            del module
+
+        file_contents = self.liara.redis.get('cogfiles.{}'.format(name))
+        if file_contents is None:
+            raise IOError('Redis appears to be improperly configured')
+        module = types.ModuleType(name)
+        exec(file_contents, module.__dict__)
+
+        if not hasattr(module, 'setup'):
+            del module
+            raise discord.ClientException('Extension does not have a setup function')
+
+        module.setup(self.liara)
+        self.liara.extensions[name] = module
+        sys.modules[name] = module
 
     async def on_message(self, message):
         if self.liara.lockdown:
@@ -169,6 +201,14 @@ class Core:
             await context.send(error)
         elif isinstance(exception, commands_errors.CommandNotFound):
             pass
+
+    async def on_liara_pubsub_receive(self, data):
+        if self.liara.shard_id != 0:
+            return
+        if data.get('type') != 'cog-load':
+            return
+        self.load_cog(data['cog'])
+        self.settings['cogs'].append(data['cog'])
 
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
@@ -318,18 +358,23 @@ class Core:
         """Loads a cog."""
         cog_name = 'cogs.{0}'.format(name)
         if cog_name not in list(self.liara.extensions):
-            try:
-                cog = importlib.import_module(cog_name)
-                importlib.reload(cog)
-                self.liara.load_extension(cog.__name__)
-                self.settings['cogs'].append(cog_name)
-                await ctx.send('`{0}` loaded successfully.'.format(name))
-            except Exception as e:
-                _traceback = traceback.format_tb(e.__traceback__)
-                _traceback = ''.join(_traceback[2:])
-                await ctx.send('Unable to load; the cog caused a `{0}`:\n```py\nTraceback '
-                               '(most recent call last):\n{1}{0}: {2}\n```'
-                               .format(type(e).__name__, _traceback, e))
+            if self.liara.shard_id == 0 or self.liara.shard_id is None:
+                try:
+                    self.load_cog(cog_name)
+                    self.settings['cogs'].append(cog_name)
+                    await ctx.send('`{0}` loaded successfully.'.format(name))
+                except Exception as e:
+                    _traceback = traceback.format_tb(e.__traceback__)
+                    _traceback = ''.join(_traceback[2:])
+                    await ctx.send('Unable to load; the cog caused a `{0}`:\n```py\nTraceback '
+                                   '(most recent call last):\n{1}{0}: {2}\n```'
+                                   .format(type(e).__name__, _traceback, e))
+            else:
+                msg = 'Dispatching command to the root shard...'
+                message = await ctx.send(msg)
+                self.liara.publish({'type': 'cog-load', 'cog': 'cogs.moderation'})
+                msg += ' Done!\nThe cog should be loaded on this shard momentarily.'
+                await message.edit(content=msg)
         else:
             await ctx.send('Unable to load; that cog is already loaded.')
 
@@ -351,14 +396,14 @@ class Core:
 
     @commands.command()
     @checks.is_owner()
+    @checks.is_main_shard()
     async def reload(self, ctx, name: str):
         """Reloads a cog."""
         cog_name = 'cogs.{0}'.format(name)
         if cog_name in list(self.liara.extensions):
             cog = importlib.import_module(cog_name)
-            importlib.reload(cog)
             self.liara.unload_extension(cog_name)
-            self.liara.load_extension(cog_name)
+            self.load_cog(cog_name)
             await ctx.send('`{0}` reloaded successfully.\nLast modified at: `{1}`'
                            .format(name, datetime.datetime.fromtimestamp(os.path.getmtime(cog.__file__))))
         else:
