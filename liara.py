@@ -2,7 +2,7 @@
 
 from discord.ext import commands
 from discord import utils as dutils
-from cogs.utils.dataIO import dataIO
+from cogs.utils import dataIO
 import argparse
 import sys
 import time
@@ -26,7 +26,7 @@ class Liara(commands.Bot):
         self.logger.info('Liara is booting, please wait...')
         self.redis = redis_conn
         self.lockdown = True  # so we don't process any messages before on_ready
-        self.settings = dataIO.load_json('settings')
+        self.settings = dataIO.load('settings')
         self.owner = None  # this gets updated in on_ready
         self.invite_url = None  # this too
         self.send_cmd_help = send_cmd_help

@@ -1,4 +1,4 @@
-from cogs.utils.dataIO import dataIO
+from cogs.utils import dataIO
 from cogs.utils import checks
 from raven import Client as SentryClient
 from raven.exceptions import InvalidDsn
@@ -10,7 +10,7 @@ class Sentry:
     """A simple cog for bug reports."""
     def __init__(self, liara):
         self.liara = liara
-        self.settings = dataIO.load_json('sentry')
+        self.settings = dataIO.load('sentry')
         if 'dsn' not in self.settings:
             self.settings['dsn'] = None
         self.client = None

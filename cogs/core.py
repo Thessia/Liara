@@ -1,4 +1,4 @@
-from cogs.utils.dataIO import dataIO
+from cogs.utils import dataIO
 from cogs.utils import checks
 from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
@@ -21,7 +21,7 @@ import sys
 class Core:
     def __init__(self, liara):
         self.liara = liara
-        self.settings = dataIO.load_json('settings')
+        self.settings = dataIO.load('settings')
         self.ignore_db = False
         self.logger = self.liara.logger
         self.liara.loop.create_task(self.post())
