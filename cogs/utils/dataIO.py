@@ -55,3 +55,7 @@ class dataIO:
     @staticmethod
     def load_json(filename):
         return RedisDict(key=filename, redis=__main__.redis_conn, writeback=True)
+
+
+load_json = dataIO.load_json
+load = load_json
