@@ -122,19 +122,24 @@ class Core:
         if name in self.liara.extensions:
             return
 
-        if self.liara.shard_id is None or self.liara.shard_id == 0:
-            module = importlib.import_module(name)
-            importlib.reload(module)
-            del sys.modules[name]
-            if hasattr(module, '__file__'):
-                path = module.__file__
-                with open(path, 'rb') as f:
-                    self.liara.redis.set('cogfiles.{}'.format(name), f.read())
-            else:
-                raise discord.ClientException('Extension is not a file')
-            del module
+        redis_name = 'cogfiles.{}'.format(name)
 
-        file_contents = self.liara.redis.get('cogfiles.{}'.format(name))
+        try:
+            if self.liara.shard_id is None or self.liara.shard_id == 0:
+                module = importlib.import_module(name)
+                importlib.reload(module)
+                del sys.modules[name]
+                if hasattr(module, '__file__'):
+                    path = module.__file__
+                    with open(path, 'rb') as f:
+                        self.liara.redis.set('cogfiles.{}'.format(name), f.read())
+                else:
+                    raise discord.ClientException('Extension is not a file')
+                del module
+        except ModuleNotFoundError:
+            assert self.liara.redis.exists(redis_name), 'Module not found on disk or in Redis'
+
+        file_contents = self.liara.redis.get(redis_name)
         if file_contents is None:
             raise IOError('Redis appears to be improperly configured')
         module = types.ModuleType(name)
@@ -146,7 +151,8 @@ class Core:
 
         module.setup(self.liara)
         self.liara.extensions[name] = module
-        self.settings['cogs'].append(name)
+        if name not in self.settings['cogs']:
+            self.settings['cogs'].append(name)
         sys.modules[name] = module
 
     async def on_message(self, message):
