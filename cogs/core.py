@@ -136,7 +136,7 @@ class Core:
                 else:
                     raise discord.ClientException('Extension is not a file')
                 del module
-        except ModuleNotFoundError:
+        except ImportError:
             assert self.liara.redis.exists(redis_name), 'Module not found on disk or in Redis'
 
         file_contents = self.liara.redis.get(redis_name)
