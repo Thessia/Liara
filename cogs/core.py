@@ -5,8 +5,6 @@ from discord.ext.commands import errors as commands_errors
 import importlib
 import traceback
 import inspect
-import os
-import datetime
 import aiohttp
 import discord.errors
 import asyncio
@@ -148,6 +146,7 @@ class Core:
 
         module.setup(self.liara)
         self.liara.extensions[name] = module
+        self.settings['cogs'].append(name)
         sys.modules[name] = module
 
     async def on_message(self, message):
@@ -208,7 +207,6 @@ class Core:
         if data.get('type') != 'cog-load':
             return
         self.load_cog(data['cog'])
-        self.settings['cogs'].append(data['cog'])
 
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
@@ -361,7 +359,6 @@ class Core:
             if self.liara.shard_id == 0 or self.liara.shard_id is None:
                 try:
                     self.load_cog(cog_name)
-                    self.settings['cogs'].append(cog_name)
                     await ctx.send('`{0}` loaded successfully.'.format(name))
                 except Exception as e:
                     _traceback = traceback.format_tb(e.__traceback__)
@@ -399,13 +396,16 @@ class Core:
     @checks.is_main_shard()
     async def reload(self, ctx, name: str):
         """Reloads a cog."""
-        cog_name = 'cogs.{0}'.format(name)
+        cog_name = 'cogs.{}'.format(name)
         if cog_name in list(self.liara.extensions):
-            cog = importlib.import_module(cog_name)
+            msg = await ctx.send('`{}` reloading...'.format(name))
             self.liara.unload_extension(cog_name)
             self.load_cog(cog_name)
-            await ctx.send('`{0}` reloaded successfully.\nLast modified at: `{1}`'
-                           .format(name, datetime.datetime.fromtimestamp(os.path.getmtime(cog.__file__))))
+            await asyncio.sleep(2)
+            if cog_name in list(self.liara.extensions):
+                await msg.edit(content='`{}` reloaded successfully.'.format(name))
+            else:
+                await msg.edit(content='`{}` reloaded unsuccessfully. Check your logs for more details.'.format(name))
         else:
             await ctx.send('Unable to reload, that cog isn\'t loaded.')
 
