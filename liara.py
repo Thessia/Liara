@@ -80,6 +80,9 @@ class Liara(commands.Bot):
             self.owner = self.user
         else:
             self.owner = self.get_user(self.args.userbot)
+        if self.args.test:
+            self.logger.info('Test complete, logging out...')
+            await self.logout()
 
     async def on_message(self, message):
         pass
@@ -143,6 +146,7 @@ if __name__ == '__main__':
     parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
     parser.add_argument('--userbot', help='enables userbot mode, with the specified owner ID', type=int, default=None)
     parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
+    parser.add_argument('--test', help=argparse.SUPPRESS, action='store_true')
     parser.add_argument('--message_cache_count', help='sets the maximum amount of messages to cache in liara.messages',
                         default=message_cache, type=int)
     parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
@@ -238,6 +242,9 @@ if __name__ == '__main__':
     def run_app():
         loop = asyncio.get_event_loop()
         exit_code = 0
+        if args.test:
+            logger.info('Liara is in test mode, flushing database...')
+            liara.redis.flushdb()
         try:
             loop.run_until_complete(run_bot())
         except KeyboardInterrupt:
@@ -249,6 +256,8 @@ if __name__ == '__main__':
             loop.run_until_complete(liara.logout())
         finally:
             loop.close()
+            if args.test:
+                liara.redis.flushdb()
             return exit_code
 
     # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
