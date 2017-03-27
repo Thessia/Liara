@@ -1,6 +1,6 @@
 from discord.ext import commands
 from cogs.utils import checks
-from cogs.utils.dataIO import dataIO
+from cogs.utils import dataIO
 import asyncio
 import discord
 
@@ -8,7 +8,7 @@ import discord
 class Welcome:
     def __init__(self, liara):
         self.liara = liara
-        self.welcome = dataIO.load_json('pandentia.welcome')
+        self.welcome = dataIO.load('pandentia.welcome')
         self.disabled = False
 
     def __unload(self):

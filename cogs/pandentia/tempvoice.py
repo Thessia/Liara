@@ -1,6 +1,6 @@
 from discord.ext import commands
 from cogs.utils import checks
-from cogs.utils.dataIO import dataIO
+from cogs.utils import dataIO
 import discord
 import asyncio
 
@@ -9,7 +9,7 @@ class TemporaryVoice:
     """A cog to create TeamSpeak-like voice channels."""
     def __init__(self, liara):
         self.liara = liara
-        self.config = dataIO.load_json('pandentia.tempvoice')
+        self.config = dataIO.load('pandentia.tempvoice')
         self.config_default = {'channel': None, 'limit': 0}
         self.tracked_channels = set()
 
