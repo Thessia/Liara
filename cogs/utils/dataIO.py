@@ -15,6 +15,7 @@ class RedisDict(redis_collections.Dict):
         self.rthread = threading.Thread(target=self.refresh_loop, daemon=True, name=kwargs['key'])
         self.rthread.start()
         self.prev = None
+        self.id = str(int(time.time() * 10000))  # make it unlikely that dataIO instances will collide
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_format = 'liara.{}.data.{}'.format(db, kwargs['key'])
 
@@ -25,7 +26,7 @@ class RedisDict(redis_collections.Dict):
                 self.prev = str(self.cache)
                 self.sync()
                 self.redis.publish(self.pubsub_format, json.dumps({
-                    'shard': __main__.liara.shard_id, 'msg': 'update!'}))
+                    'instance': self.id, 'msg': 'update!'}))
                 time.sleep(0.01)
             else:
                 time.sleep(0.01)
@@ -38,7 +39,7 @@ class RedisDict(redis_collections.Dict):
             if message['type'] != 'message':
                 continue
             data = json.loads(message['data'].decode())
-            if data['shard'] == __main__.liara.shard_id:
+            if data['instance'] == self.id:
                 continue
             if data['msg'] != 'update!':
                 continue
