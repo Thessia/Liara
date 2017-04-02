@@ -17,7 +17,7 @@ class Pacman:
         self.log = None
         self.crawled = None
         self.urlmatch = re.compile(r'^https?://')
-        self.pkgmatch = re.compile(r'^[a-z_]*\.[a-z_\-.]*$')
+        self.pkgmatch = re.compile(r'^[a-z_]+\.[a-z_\-.]+$')
 
         if self.db.get('indexes') is None:
             self.db['indexes'] = {}
