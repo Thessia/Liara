@@ -219,7 +219,7 @@ class Pacman:
     @pacman.command('install-cog', aliases=['ic', 'install'])
     @checks.is_owner()
     async def install_cog(self, ctx, package):
-        """Installs a cog by its hash."""
+        """Installs a cog by its package name."""
         if not self.pkgmatch.match(package):
             await ctx.send('That isn\'t a valid package.')
             return
