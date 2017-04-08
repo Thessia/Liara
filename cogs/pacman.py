@@ -252,7 +252,7 @@ class Pacman:
     @pacman.command('update-cogs', aliases=['uc', 'upgrade'])
     @checks.is_owner()
     async def update_cogs(self, ctx):
-        """Updates all cogs"""
+        """Updates all cogs."""
         log = 'Updating cogs...\n'
         fail = False  # keeping track if the install failed or not, suggesting users to run an update first
         cogs = self.list_cogs()
