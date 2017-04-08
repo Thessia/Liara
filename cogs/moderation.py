@@ -148,6 +148,7 @@ class Moderation:
         """Kicks a member."""
         try:
             await member.kick()
+            self.liara.dispatch('kick', member)  # yay for implementing on_kick
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to kick that person here.')
