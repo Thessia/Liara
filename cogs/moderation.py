@@ -129,6 +129,20 @@ class Moderation:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
 
     @commands.command(no_pm=True)
+    @checks.mod_or_permissions(ban_members=True)
+    async def hackban(self, ctx, user_id: int):
+        """Bans a member by their ID."""
+        try:
+            await self.liara.http.ban(str(user_id), str(ctx.guild.id))
+            await ctx.send('Done. Good riddance.')
+        except discord.NotFound:
+            await ctx.send('That user doesn\'t exist.')
+        except discord.Forbidden:
+            await ctx.send('Sorry, I don\'t have permission to ban that person here.')
+        except discord.HTTPException:
+            await ctx.send('That ID is invalid.')
+
+    @commands.command(no_pm=True)
     @checks.mod_or_permissions(kick_members=True)
     async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Kicks a member, removing all their messages in the process."""
