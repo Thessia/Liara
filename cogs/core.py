@@ -58,6 +58,7 @@ class Core:
             self.settings['roles'] = {}
         if 'ignores' not in self.settings:
             self.settings['ignores'] = {}
+        await self.liara.wait_until_ready()
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
     async def maintenance_loop(self):
