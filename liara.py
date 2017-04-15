@@ -10,7 +10,7 @@ import asyncio
 import traceback
 import redis
 import logging
-import os.path
+import os
 import tarfile
 import datetime
 import json
@@ -149,6 +149,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', help=argparse.SUPPRESS, action='store_true')
     parser.add_argument('--message_cache_count', help='sets the maximum amount of messages to cache in liara.messages',
                         default=message_cache, type=int)
+    parser.add_argument('--uvloop', help='enables uvloop mode', action='store_true')
     parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
     shard_grp = parser.add_argument_group('sharding')
     # noinspection PyUnboundLocalVariable
@@ -175,6 +176,15 @@ if __name__ == '__main__':
 
     if args.selfbot and userbot:
         exit(parser.print_usage())
+
+    if args.uvloop:
+        try:
+            # noinspection PyUnresolvedReferences
+            import uvloop
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        except ImportError:
+            print('uvloop is not installed!')
+            exit(1)
 
     # Logging starts here
     # Create directory for logs if it doesn't exist
