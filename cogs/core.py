@@ -357,6 +357,9 @@ class Core:
     async def halt(self, ctx):
         """Shuts Liara down."""
         await ctx.send(':wave:')
+        for cog in self.liara.extensions:
+            self.liara.unload_extension(cog)
+        await asyncio.sleep(2)
         await self.liara.logout()
 
     @commands.command()
