@@ -6,7 +6,7 @@ import importlib
 import traceback
 import inspect
 import aiohttp
-import discord.errors
+import discord
 import asyncio
 import random
 import json
@@ -119,6 +119,8 @@ class Core:
             async with session.post('https://api.github.com/gists', data=json.dumps(github_file)) as response:
                 return await response.json()
 
+    # make IDEA stop acting like a baby
+    # noinspection PyShadowingBuiltins,PyUnresolvedReferences
     def load_cog(self, name):
         if name in self.liara.extensions:
             return
