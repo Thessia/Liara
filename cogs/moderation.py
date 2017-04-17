@@ -98,8 +98,8 @@ class Moderation:
         else:
             level = '(╯°□°）╯︵ ┻━┻'
 
-        embed.add_field(name='Other miscellaneous info', value='**AFK Channel**: {0.afk_channel}\n'
-                                                               '**AFK Timeout**: {0.afk_timeout} seconds\n'
+        embed.add_field(name='Other miscellaneous info', value='**AFK channel**: {0.afk_channel}\n'
+                                                               '**AFK timeout**: {0.afk_timeout} seconds\n'
                                                                '**Owner**: {0.owner.mention}\n'
                                                                '**Region**: `{0.region.value}`\n'
                                                                '**Verification level**: {1}'.format(guild, level))
