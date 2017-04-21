@@ -271,7 +271,8 @@ class Core:
         else:
             await ctx.send('Owners set.')
 
-    @set_cmd.command(no_pm=True)
+    @set_cmd.command()
+    @commands.guild_only()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
     async def admin(self, ctx, role: str=None):
@@ -290,7 +291,8 @@ class Core:
                            'If you didn\'t intend to do this, use `{0}help set admin` for help.'
                            .format(ctx.prefix))
 
-    @set_cmd.command(no_pm=True)
+    @set_cmd.command()
+    @commands.guild_only()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
     async def moderator(self, ctx, role: str=None):

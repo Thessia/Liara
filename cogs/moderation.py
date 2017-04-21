@@ -8,7 +8,8 @@ class Moderation:
     def __init__(self, liara):
         self.liara = liara
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     async def userinfo(self, ctx, user: discord.Member=None):
         """Shows you a user's info.
 
@@ -59,7 +60,8 @@ class Moderation:
         else:
             await ctx.send('Unable to post userinfo, please allow the Embed Links permission.')
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     async def serverinfo(self, ctx):
         """Shows you the server's info."""
         guild = ctx.guild
@@ -115,7 +117,8 @@ class Moderation:
         else:
             await ctx.send('Unable to post serverinfo, please allow the Embed Links permission.')
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     @checks.mod_or_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Bans a member."""
@@ -128,7 +131,8 @@ class Moderation:
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     @checks.mod_or_permissions(ban_members=True)
     async def hackban(self, ctx, user_id: int):
         """Bans a member by their ID."""
@@ -142,7 +146,8 @@ class Moderation:
         except discord.HTTPException:
             await ctx.send('That ID is invalid.')
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
     async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Kicks a member, removing all their messages in the process."""
@@ -156,7 +161,8 @@ class Moderation:
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
 
-    @commands.command(no_pm=True)
+    @commands.command()
+    @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member):
         """Kicks a member."""
