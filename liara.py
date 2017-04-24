@@ -230,9 +230,15 @@ if __name__ == '__main__':
     discord_logger.addHandler(handler)
 
     # Make it clear that we're not doing any Windows support
-    if sys.platform == 'win32':
+    def warn_win():
         logger.warning('There is absolutely NO support for Windows-based Operating Systems. Proceed with caution, '
                        'because if you mess this up, no one will help you.')
+
+    if sys.platform == 'win32':
+        warn_win()
+    if sys.platform == 'linux':
+        if os.path.exists('/dev/lxss'):  # go away, Linux subsystem, you're not real
+            warn_win()
 
     if args.shard_id is not None:  # usability
         args.shard_id -= 1
