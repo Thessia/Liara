@@ -2,6 +2,7 @@ import redis_collections
 import threading
 import time
 import json
+import pickle
 # noinspection PyUnresolvedReferences
 import __main__
 
@@ -22,8 +23,8 @@ class RedisDict(redis_collections.Dict):
     def update_loop(self):
         time.sleep(2)
         while not self.die:
-            if self.prev != str(self.cache):
-                self.prev = str(self.cache)
+            if self.prev != pickle.dumps(self.cache):
+                self.prev = pickle.dumps(self.cache)
                 self.sync()
                 self.redis.publish(self.pubsub_format, json.dumps({
                     'instance': self.id, 'msg': 'update!'}))
@@ -45,7 +46,13 @@ class RedisDict(redis_collections.Dict):
                 continue
             self.cache.clear()
             self.cache = dict(self)
-            self.prev = str(self.cache)
+            self.prev = pickle.dumps(self.cache)
+
+    def __getitem__(self, item):
+        try:
+            return self.cache.__getitem__(item)
+        except KeyError:
+            return super().__getitem__(item)
 
 
 class dataIO:
