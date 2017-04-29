@@ -1,5 +1,7 @@
 from discord.ext import commands
 from cogs.utils import checks
+from collections import Counter
+from datetime import datetime
 import time
 import asyncio
 
@@ -7,6 +9,7 @@ import asyncio
 class Useful:
     def __init__(self, liara):
         self.liara = liara
+        self.event_counter = Counter()
 
     @commands.command()
     async def ping(self, ctx):
@@ -77,6 +80,17 @@ class Useful:
                                m=self.format_english(minutes, 'minute'), s=self.format_english(seconds, 'second'))
 
         await ctx.send(output)
+
+    async def on_socket_response(self, resp):
+        self.event_counter.update([resp.get('t')])
+
+    @commands.command(hidden=True)
+    async def socketstats(self, ctx):
+        boot_time = datetime.fromtimestamp(self.liara.boot_time)
+        table = ''
+        for k, v in self.event_counter.items():
+            table += '\n`{}`: {}'.format(k, v)
+        await ctx.send('{} socket events seen since {}.{}'.format(sum(self.event_counter.values()), boot_time, table))
 
 
 def setup(liara):
