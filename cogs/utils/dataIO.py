@@ -1,58 +1,91 @@
-import redis_collections
 import threading
 import time
-import json
 import pickle
+import json
 # noinspection PyUnresolvedReferences
 import __main__
 
 
-class RedisDict(redis_collections.Dict):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class RedisDict(dict):
+    def __init__(self, key, redis):
+        super().__init__()
+        self.key = key
+        self.redis = redis
         self.die = False
-        self.thread = threading.Thread(target=self.update_loop, daemon=True, name=kwargs['key'])
-        self.thread.start()
-        self.rthread = threading.Thread(target=self.refresh_loop, daemon=True, name=kwargs['key'])
-        self.rthread.start()
-        self.prev = None
-        self.id = str(int(time.time() * 10000))  # make it unlikely that dataIO instances will collide
+        self._ready = threading.Event()
+        self._modified = {}
         db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.pubsub_format = 'liara.{}.data.{}'.format(db, kwargs['key'])
+        self.id = 'liara.{}.data.{}'.format(db, key)
+        threading.Thread(target=self._initialize, name='dataIO init thread for {}'.format(key), daemon=True).start()
+        threading.Thread(target=self._pubsub_listener, name='dataIO pubsub thread for {}'.format(key),
+                         daemon=True).start()
+        threading.Thread(target=self._loop, name='dataIO loop thread for {}'.format(key), daemon=True).start()
+        self.uuid = hex(int(time.time() * 10 ** 7))[2:]
 
-    def update_loop(self):
-        time.sleep(2)
+    def _initialize(self):
+        time.sleep(0.5)
+        self._pull()
+        self._ready.set()
+
+    def _set(self, key):
+        _key = pickle.dumps(key)
+        value = pickle.dumps(super().__getitem__(key))
+        self.redis.hset(self.key, _key, value)
+        self.redis.publish(self.id, json.dumps({
+            'origin': self.uuid,
+            'action': 'get',
+            'key': repr(_key)
+        }))
+
+    def _get(self, key):
+        out = self.redis.hget(self.key, pickle.dumps(key))
+        return pickle.loads(out) if out is not None else None
+
+    def _pull(self):
+        redis_copy = {pickle.loads(k): pickle.loads(v) for k, v in self.redis.hgetall(self.key).items()}
+        self.clear()
+        self.update(redis_copy)
+
+    def _loop(self):
         while not self.die:
-            if self.prev != pickle.dumps(self.cache):
-                self.prev = pickle.dumps(self.cache)
-                self.sync()
-                self.redis.publish(self.pubsub_format, json.dumps({
-                    'instance': self.id, 'msg': 'update!'}))
-                time.sleep(0.01)
-            else:
-                time.sleep(0.01)
+            for item in self:
+                new = pickle.dumps(self.get(item))
+                old = self._modified.get(item)
 
-    def refresh_loop(self):
-        time.sleep(2)
+                if new != old:
+                    self._set(item)
+                    self._modified[item] = new
+            time.sleep(0.01)
+
+    def _pubsub_listener(self):
+        self._ready.wait()
         pubsub = self.redis.pubsub()
-        pubsub.subscribe([self.pubsub_format])
+        pubsub.subscribe([self.id])
         for message in pubsub.listen():
             if message['type'] != 'message':
                 continue
-            data = json.loads(message['data'].decode())
-            if data['instance'] == self.id:
+            message = json.loads(message['data'].decode())
+            if message['origin'] == self.uuid:
                 continue
-            if data['msg'] != 'update!':
-                continue
-            self.cache.clear()
-            self.cache = dict(self)
-            self.prev = pickle.dumps(self.cache)
+            if message['action'] == 'get':
+                key = pickle.loads(eval(message['key']))
+                super().__setitem__(key, self._get(key))
+            if message['action'] == 'pull':
+                self._pull()
 
-    def __getitem__(self, item):
-        try:
-            return self.cache.__getitem__(item)
-        except KeyError:
-            return super().__getitem__(item)
+    def __getitem__(self, key):
+        self._ready.wait()
+        return super().__getitem__(key)
+
+    def __contains__(self, item):
+        self._ready.wait()
+        return super().__contains__(item)
+
+    def __setitem__(self, key, value):
+        out = super().__setitem__(key, value)
+        threading.Thread(target=lambda: self._set(key), name='dataIO setter thread for {}'.format(self.key),
+                         daemon=True).start()
+        return out
 
 
 class dataIO:
@@ -62,7 +95,7 @@ class dataIO:
 
     @staticmethod
     def load_json(filename):
-        return RedisDict(key=filename, redis=__main__.redis_conn, writeback=True)
+        return RedisDict(key=filename, redis=__main__.redis_conn)
 
 
 load_json = dataIO.load_json
