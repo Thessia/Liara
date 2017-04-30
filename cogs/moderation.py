@@ -92,19 +92,27 @@ class Moderation:
             embed.add_field(name='Text channels', value=channels)
 
         if guild.verification_level == discord.VerificationLevel.none:
-            level = 'Off'
+            verification_level = 'None'
         elif guild.verification_level == discord.VerificationLevel.low:
-            level = 'Low'
+            verification_level = 'Low'
         elif guild.verification_level == discord.VerificationLevel.medium:
-            level = 'Medium'
+            verification_level = 'Medium'
         else:
-            level = '(╯°□°）╯︵ ┻━┻'
+            verification_level = '(╯°□°）╯︵ ┻━┻'
 
-        embed.add_field(name='Other miscellaneous info', value='**AFK channel**: {0.afk_channel}\n'
-                                                               '**AFK timeout**: {0.afk_timeout} seconds\n'
-                                                               '**Owner**: {0.owner.mention}\n'
-                                                               '**Region**: `{0.region.value}`\n'
-                                                               '**Verification level**: {1}'.format(guild, level))
+        if guild.explicit_content_filter == discord.ContentFilter.disabled:
+            explicit_level = 'Don\'t scan any messages'
+        elif guild.explicit_content_filter == discord.ContentFilter.no_role:
+            explicit_level = 'Scan messages from members without a role'
+        else:
+            explicit_level = 'Scan messages sent by all members'
+
+        info = '**AFK channel**: {0.afk_channel}\n**AFK timeout**: {0.afk_timeout} seconds\n' \
+               '**Owner**: {0.owner.mention}\n**Region**: `{0.region.value}`\n' \
+               '**Verification level**: {1}\n**Explicit content filter**: {2}'.format(guild, verification_level,
+                                                                                      explicit_level)
+
+        embed.add_field(name='Other miscellaneous info', value=info)
 
         embed.timestamp = guild.created_at
         embed.set_footer(text='Created on')
