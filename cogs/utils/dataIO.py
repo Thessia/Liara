@@ -51,11 +51,14 @@ class RedisDict(dict):
         while not self.die:
             for item in self:
                 new = copy.deepcopy(self.get(item))
-                old = self._modified.get(item)
+                old = self._modified.get(item, new)
 
                 if new != old:
-                    self._set(item)
-                    self._modified[item] = new
+                    try:
+                        self._set(item)
+                        self._modified[item] = new
+                    except pickle.PickleError:
+                        self._modified.pop(item, None)
             time.sleep(0.01)
 
     def _pubsub_listener(self):
