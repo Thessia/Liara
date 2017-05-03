@@ -51,7 +51,7 @@ class RedisDict(dict):
         while not self.die:
             for item in self:
                 new = copy.deepcopy(self.get(item))
-                old = self._modified.get(item, new)
+                old = self._modified.get(item)
 
                 if new != old:
                     try:
