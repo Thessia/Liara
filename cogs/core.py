@@ -194,7 +194,7 @@ class Core:
 
         await self.liara.process_commands(message)
 
-    async def on_command_error(self, exception, context):
+    async def on_command_error(self, context, exception):
         if isinstance(exception, commands_errors.MissingRequiredArgument):
             await self.liara.send_command_help(context)
         elif isinstance(exception, commands_errors.BadArgument):
