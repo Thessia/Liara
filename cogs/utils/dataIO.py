@@ -1,7 +1,6 @@
 import threading
 import time
 import pickle
-import copy
 import json
 # noinspection PyUnresolvedReferences
 import __main__
@@ -50,7 +49,7 @@ class RedisDict(dict):
     def _loop(self):
         while not self.die:
             for item in self:
-                new = copy.deepcopy(self.get(item))
+                new = pickle.loads(pickle.dumps(self.get(item)))
                 old = self._modified.get(item)
 
                 if new != old:
