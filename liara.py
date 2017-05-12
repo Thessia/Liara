@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 
-from discord.ext import commands
-from discord import utils as dutils
-from cogs.utils import dataIO
 import argparse
-import sys
-import time
 import asyncio
-import traceback
-import redis
-import logging
-import os
-import tarfile
 import datetime
 import json
+import logging
+import sys
+import tarfile
 import threading
+import time
+import traceback
+
+import os
+import redis
+from discord import utils as dutils
+from discord.ext import commands
+
+from cogs.utils import dataIO
 
 
 class Liara(commands.Bot):
