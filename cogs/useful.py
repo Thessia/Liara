@@ -1,9 +1,11 @@
-from discord.ext import commands
-from cogs.utils import checks
-from collections import Counter
-from datetime import datetime
-import time
 import asyncio
+import time
+from datetime import datetime
+
+from collections import Counter
+from discord.ext import commands
+
+from cogs.utils import checks
 
 
 class Useful:

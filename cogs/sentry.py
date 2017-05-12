@@ -1,9 +1,10 @@
-from cogs.utils import dataIO
-from cogs.utils import checks
+from discord.ext import commands
+from discord.ext.commands import errors as commands_errors
 from raven import Client as SentryClient
 from raven.exceptions import InvalidDsn
-from discord.ext.commands import errors as commands_errors
-from discord.ext import commands
+
+from cogs.utils import checks
+from cogs.utils import dataIO
 
 
 class Sentry:

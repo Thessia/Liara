@@ -1,11 +1,13 @@
-from cogs.utils import checks
-from cogs.utils import dataIO
-from discord.ext import commands
-from hashlib import sha256
-import aiohttp
+import asyncio
 import json
 import re
-import asyncio
+from hashlib import sha256
+
+import aiohttp
+from discord.ext import commands
+
+from cogs.utils import checks
+from cogs.utils import dataIO
 
 
 class Pacman:
