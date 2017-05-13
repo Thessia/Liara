@@ -48,7 +48,7 @@ class RedisDict(dict):
 
     def _loop(self):
         while not self.die:
-            for item in self:
+            for item in list(self):
                 new = pickle.loads(pickle.dumps(self.get(item)))
                 old = self._modified.get(item)
 
