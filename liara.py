@@ -20,22 +20,25 @@ from cogs.utils import dataIO
 
 
 class Liara(commands.Bot):
-    def __init__(self, command_prefix, **options):
-        super().__init__(command_prefix, **options)
-        self.args = args
+    def __init__(self, *args, **kwargs):
+        self.redis = kwargs.pop('redis', None)
+        if self.redis is None:
+            raise AssertionError('No redis instance specified')
+        self.test = kwargs.pop('test', False)
+        self.args = kwargs.pop('cargs', None)  # not used in most code, just a nice thing to have (optional)
         self.boot_time = time.time()  # for uptime tracking, we'll use this later
-        self.logger = logger
+        self.logger = logging.getLogger('liara')
         self.logger.info('Liara is booting, please wait...')
-        self.redis = redis_conn
         self.lockdown = True  # so we don't process any messages before on_ready
         self.settings = dataIO.load('settings')
         self.owner = None  # this gets updated in on_ready
         self.invite_url = None  # this too
         self.send_cmd_help = send_cmd_help
         self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
-        self.self_bot = options.get('self_bot', False)
+        self.self_bot = kwargs.get('self_bot', False)
         self.pubsub = None
         threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True).start()
+        super().__init__(*args, **kwargs)
         try:
             loader = self.settings['loader']
             self.load_extension('cogs.' + loader)
@@ -82,7 +85,7 @@ class Liara(commands.Bot):
             self.owner = self.user
         else:
             self.owner = self.get_user(self.args.userbot)
-        if self.args.test:
+        if self.test:
             self.logger.info('Test complete, logging out...')
             await self.logout()
 
@@ -166,20 +169,20 @@ if __name__ == '__main__':
     # noinspection PyUnboundLocalVariable
     redis_grp.add_argument('--db', type=int, help='the Redis database', default=redis_db)
     redis_grp.add_argument('--password', type=str, help='the Redis password', default=redis_pass)
-    args = parser.parse_args()
+    cargs = parser.parse_args()
 
-    if args.token is None:
+    if cargs.token is None:
         exit(parser.print_usage())
 
-    if args.userbot is None:
+    if cargs.userbot is None:
         userbot = False
     else:
         userbot = True
 
-    if args.selfbot and userbot:
+    if cargs.selfbot and userbot:
         exit(parser.print_usage())
 
-    if args.uvloop:
+    if cargs.uvloop:
         try:
             # noinspection PyUnresolvedReferences
             import uvloop
@@ -208,7 +211,7 @@ if __name__ == '__main__':
 
     # Setting up loggers
     logger = logging.getLogger('liara')
-    if args.debug:
+    if cargs.debug:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
@@ -222,7 +225,7 @@ if __name__ == '__main__':
     logger.addHandler(handler)
 
     discord_logger = logging.getLogger('discord')
-    if args.debug:
+    if cargs.debug:
         discord_logger.setLevel(logging.DEBUG)
     else:
         discord_logger.setLevel(logging.INFO)
@@ -233,7 +236,7 @@ if __name__ == '__main__':
 
     # Make it clear that we're not doing any Windows support
     def warn_win():
-        logger.warning('There is absolutely NO support for Windows-based Operating Systems. Proceed with caution, '
+        logger.warning('There is absolutely NO support for Windows-based operating systems. Proceed with caution, '
                        'because if you mess this up, no one will help you.')
 
     if sys.platform == 'win32':
@@ -242,25 +245,31 @@ if __name__ == '__main__':
         if os.path.exists('/dev/lxss'):  # go away, Linux subsystem, you're not real
             warn_win()
 
-    if args.shard_id is not None:  # usability
-        args.shard_id -= 1
+    if cargs.shard_id is not None:  # usability
+        cargs.shard_id -= 1
 
     # Redis connection attempt
     try:
-        redis_conn = redis.StrictRedis(host=args.host, port=args.port, db=args.db, password=args.password)
+        redis_conn = redis.StrictRedis(host=cargs.host, port=cargs.port, db=cargs.db, password=cargs.password)
     except redis.ConnectionError:
         logger.critical('Unable to connect to Redis, exiting...')
         exit(2)
 
+    # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
+    # noinspection PyUnboundLocalVariable
+    liara = Liara('!', shard_id=cargs.shard_id, shard_count=cargs.shard_count, description=cargs.description,
+                  self_bot=cargs.selfbot, pm_help=None, max_messages=message_cache,
+                  redis=redis_conn, cargs=cargs, test=cargs.test)  # liara-specific args
+
     async def run_bot():
-        await liara.login(args.token, bot=not (args.selfbot or userbot))
+        await liara.login(cargs.token, bot=not (cargs.selfbot or userbot))
         await liara.connect()
 
     # noinspection PyBroadException
     def run_app():
         loop = asyncio.get_event_loop()
         exit_code = 0
-        if args.test:
+        if cargs.test:
             logger.info('Liara is in test mode, flushing database...')
             liara.redis.flushdb()
         try:
@@ -274,11 +283,8 @@ if __name__ == '__main__':
             loop.run_until_complete(liara.logout())
         finally:
             loop.close()
-            if args.test:
+            if cargs.test:
                 liara.redis.flushdb()
             return exit_code
 
-    # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
-    liara = Liara('!', shard_id=args.shard_id, shard_count=args.shard_count, description=args.description,
-                  self_bot=args.selfbot, pm_help=None, max_messages=message_cache)
     exit(run_app())
