@@ -134,6 +134,7 @@ class Pacman:
         return cogs
 
     @commands.group(invoke_without_command=True)
+    @checks.is_owner()
     async def pacman(self, ctx):
         """Main pacman command."""
         await self.liara.send_command_help(ctx)
