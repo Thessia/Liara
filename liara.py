@@ -88,6 +88,7 @@ class Liara(commands.Bot):
         if self.test:
             self.logger.info('Test complete, logging out...')
             await self.logout()
+            exit(0)  # jenkins' little helper
 
     async def on_message(self, message):
         pass
