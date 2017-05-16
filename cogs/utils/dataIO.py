@@ -23,7 +23,6 @@ class RedisDict(dict):
         self.uuid = hex(int(time.time() * 10 ** 7))[2:]
 
     def _initialize(self):
-        time.sleep(0.5)
         self._pull()
         self._ready.set()
 
@@ -43,8 +42,8 @@ class RedisDict(dict):
 
     def _pull(self):
         redis_copy = {pickle.loads(k): pickle.loads(v) for k, v in self.redis.hgetall(self.key).items()}
-        self.clear()
-        self.update(redis_copy)
+        super().clear()
+        super().update(redis_copy)
 
     def _loop(self):
         while not self.die:
@@ -89,6 +88,20 @@ class RedisDict(dict):
         threading.Thread(target=lambda: self._set(key), name='dataIO setter thread for {}'.format(self.key),
                          daemon=True).start()
         return out
+
+    def __delitem__(self, key):
+        self._ready.wait()
+        self.redis.hdel(self.key, key)
+        return super().__delitem__(key)
+
+    def get(self, *args):
+        self._ready.wait()
+        super().get(*args)
+
+    def clear(self):
+        self._ready.wait()
+        self.redis.delete(self.key)
+        super().clear()
 
 
 class dataIO:
