@@ -25,13 +25,13 @@ class Moderation:
 
         # user-friendly status
         if member.status == discord.Status.online:
-            status = '<:online:212789758110334977>'
+            status = '<:online:314049328459022338>'
         elif member.status == discord.Status.idle:
-            status = '<:away:212789859071426561>'
+            status = '<:away:314049477218664450>'
         elif member.status == discord.Status.do_not_disturb:
-            status = '<:do_not_disturb:236744731088912384>'
+            status = '<:do_not_disturb:314049576850161664>'
         else:
-            status = '<:offline:212790005943369728>'
+            status = '<:offline:314049612086509568>'
 
         embed = discord.Embed()
         embed.title = '{} {}'.format(status, member)
@@ -79,7 +79,7 @@ class Moderation:
         else:
             embed.description = '**ID**: {0.id}'.format(guild)
 
-        embed.add_field(name='Members', value=str(len(guild.members)))
+        embed.add_field(name='Members', value=guild.member_count)
 
         roles = [x.mention for x in guild.role_hierarchy if not x.is_default()]
         if roles:  # only show roles if the server has any
