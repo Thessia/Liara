@@ -68,9 +68,6 @@ class Moderation:
         """Shows you the server's info."""
         guild = ctx.guild
 
-        if guild.large:
-            await self.liara.request_offline_members(guild)
-
         embed = discord.Embed()
         embed.title = str(guild)
         if guild.icon_url is not None:
