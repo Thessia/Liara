@@ -19,12 +19,12 @@ class RedisDict(dict):
         threading.Thread(target=self._initialize, name='dataIO init thread for {}'.format(key), daemon=True).start()
         threading.Thread(target=self._pubsub_listener, name='dataIO pubsub thread for {}'.format(key),
                          daemon=True).start()
-        threading.Thread(target=self._loop, name='dataIO loop thread for {}'.format(key), daemon=True).start()
         self.uuid = hex(int(time.time() * 10 ** 7))[2:]
 
     def _initialize(self):
         self._pull()
         self._ready.set()
+        threading.Thread(target=self._loop, name='dataIO loop thread for {}'.format(self.key), daemon=True).start()
 
     def _set(self, key):
         _key = pickle.dumps(key)
@@ -48,7 +48,7 @@ class RedisDict(dict):
     def _loop(self):
         while not self.die:
             for item in list(self):
-                new = pickle.loads(pickle.dumps(self.get(item)))
+                new = pickle.loads(pickle.dumps(super().get(item)))
                 old = self._modified.get(item)
 
                 if new != old:
