@@ -74,6 +74,8 @@ class RedisDict(dict):
                 super().__setitem__(key, self._get(key))
             if message['action'] == 'pull':
                 self._pull()
+            if message['action'] == 'clear':
+                super().clear()
 
     def __del__(self):
         self.die = True
@@ -104,6 +106,10 @@ class RedisDict(dict):
     def clear(self):
         self._ready.wait()
         self.redis.delete(self.key)
+        self.redis.publish(self.id, json.dumps({
+            'origin': self.uuid,
+            'action': 'clear'
+        }))
         return super().clear()
 
 
