@@ -75,6 +75,9 @@ class RedisDict(dict):
             if message['action'] == 'pull':
                 self._pull()
 
+    def __del__(self):
+        self.die = True
+
     def __getitem__(self, key):
         self._ready.wait()
         return super().__getitem__(key)
