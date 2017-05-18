@@ -96,12 +96,12 @@ class RedisDict(dict):
 
     def get(self, *args):
         self._ready.wait()
-        super().get(*args)
+        return super().get(*args)
 
     def clear(self):
         self._ready.wait()
         self.redis.delete(self.key)
-        super().clear()
+        return super().clear()
 
 
 class dataIO:
