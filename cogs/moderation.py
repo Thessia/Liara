@@ -17,7 +17,7 @@ class Moderation:
 
         Defaults to message author if user is not specified.
         
-        user (optional): The user of which you want to get the info of
+        - user (optional): The user of which you want to get the info of
         """
 
         if user is None:
