@@ -16,6 +16,8 @@ class Moderation:
         """Shows you a user's info.
 
         Defaults to message author if user is not specified.
+        
+        user (optional): The user of which you want to get the info of
         """
 
         if user is None:
@@ -128,7 +130,11 @@ class Moderation:
     @commands.guild_only()
     @checks.mod_or_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, days_to_clean: int=1):
-        """Bans a member."""
+        """Bans a member.
+        
+        - member: The member to ban
+        - days_to_clean: The amount of days of message history from the member to clean
+        """
         if not 0 <= days_to_clean <= 7:
             await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
@@ -142,7 +148,10 @@ class Moderation:
     @commands.guild_only()
     @checks.mod_or_permissions(ban_members=True)
     async def hackban(self, ctx, user_id: int):
-        """Bans a member by their ID."""
+        """Bans a member by their ID.
+        
+        - user_id: The user ID to ban
+        """
         try:
             await self.liara.http.ban(str(user_id), str(ctx.guild.id))
             await ctx.send('Done. Good riddance.')
@@ -157,7 +166,11 @@ class Moderation:
     @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
     async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
-        """Kicks a member, removing all their messages in the process."""
+        """Kicks a member, removing all their messages in the process.
+                
+        - member: The member to softban
+        - days_to_clean: The amount of days of message history from the member to clean
+        """
         if not 0 <= days_to_clean <= 7:
             await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
@@ -172,35 +185,16 @@ class Moderation:
     @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member):
-        """Kicks a member."""
+        """Kicks a member.
+        
+        - member: The member to kick
+        """
         try:
             await member.kick()
             self.liara.dispatch('kick', member)  # yay for implementing on_kick
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to kick that person here.')
-
-    # @commands.command(no_pm=True)
-    # @checks.is_not_bot_account()
-    # @checks.is_owner()
-    # async def block(self, ctx, member: discord.Member):
-    #     """Blocks a member."""
-    #     if member.is_blocked():
-    #         await ctx.send('That user is already blocked.')
-    #         return
-    #     await member.block()
-    #     await ctx.send('Goodbye, {}.'.format(member.mention))
-    #
-    # @commands.command(no_pm=True)
-    # @checks.is_not_bot_account()
-    # @checks.is_owner()
-    # async def unblock(self, ctx, member: discord.Member):
-    #     """Unblocks a member."""
-    #     if not member.is_blocked():
-    #         await ctx.send('That user isn\'t blocked.')
-    #         return
-    #     await member.unblock()
-    #     await ctx.send('Welcome back, {}.'.format(member.mention))
 
 
 def setup(liara):

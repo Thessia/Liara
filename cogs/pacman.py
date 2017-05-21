@@ -142,7 +142,10 @@ class Pacman:
     @pacman.command('add-index', aliases=['ai', 'add'])
     @checks.is_owner()
     async def add_index(self, ctx, url):
-        """Adds an index."""
+        """Adds an index.
+        
+        - url: The URL of the index to add
+        """
         message = await ctx.send('Indexing...')
         log = await self.trigger_crawl([url])
         await message.edit(content='Indexing...\n'+log)
@@ -150,7 +153,10 @@ class Pacman:
     @pacman.command('remove-index', aliases=['ri'])
     @checks.is_owner()
     async def remove_index(self, ctx, _hash: str):
-        """Removes an index."""
+        """Removes an index.
+        
+        - _hash: The index's hash to remove
+        """
         if _hash in self.db['indexes']:
             self.db['indexes'].pop(_hash)
             await ctx.send('Index removed.')
@@ -182,7 +188,8 @@ class Pacman:
     @checks.is_owner()
     async def update_indexes(self, ctx):
         """Updates all root indexes.
-        Will remove inherited indexes that were removed from the parent index."""
+        Will remove inherited indexes that were removed from the parent index.
+        """
         message = await ctx.send('Updating indexes...')
         urls = [v['url'] for k, v in self.db['indexes'].items() if v['root_index'] == 'root']
         self.db['indexes_backup'] = self.db['indexes']
@@ -221,8 +228,11 @@ class Pacman:
 
     @pacman.command('install-cog', aliases=['ic', 'install'])
     @checks.is_owner()
-    async def install_cog(self, ctx, package):
-        """Installs a cog by its package name."""
+    async def install_cog(self, ctx, package: str):
+        """Installs a cog by its package name.
+        
+        - package: The package to install
+        """
         if not self.pkgmatch.match(package):
             await ctx.send('That isn\'t a valid package.')
             return
