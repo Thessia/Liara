@@ -25,6 +25,11 @@ Liara is a direct competitor to [Twentysix26's Red](https://github.com/Twentysix
    * This lets you change the message processing behavior to your liking. You can, for example, set up a whitelist of who can use Liara with this.
    * You can also set up a blacklist of people who should never be able to use Liara.
 
+### Donations
+No. I don't feel like making money off of my community would be morally correct, since it's fairly simple code for what it's worth.
+
+However, if this project has helped you, feel free to :star: it.
+
 ### Join our Discord server!
 [![Discord](https://discordapp.com/api/guilds/247754180763189258/widget.png?style=banner3)](https://discord.gg/JRJjMTy)
 
