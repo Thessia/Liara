@@ -229,7 +229,7 @@ class Core:
     @checks.is_owner()
     async def prefix(self, ctx, *prefixes: str):
         """Sets Liara's prefixes.
-        
+
         - prefixes: A list of prefixes to use
         """
         prefixes = list(prefixes)
@@ -246,7 +246,7 @@ class Core:
     @checks.is_owner()
     async def name(self, ctx, username: str):
         """Changes Liara's username.
-        
+
         - username: The username to use
         """
         await self.liara.user.edit(username=username)
@@ -256,7 +256,7 @@ class Core:
     @checks.is_owner()
     async def avatar(self, ctx, url: str):
         """Changes Liara's avatar.
-        
+
         - url: The URL to set Liara's avatar to
         """
         session = aiohttp.ClientSession()
@@ -276,7 +276,7 @@ class Core:
     @checks.is_not_selfbot()
     async def owner(self, ctx, *owners: discord.Member):
         """Sets Liara's owners.
-        
+
         - owners: A list of owners to use
         """
         self.settings['owners'] = [str(x.id) for x in list(owners)]
@@ -292,7 +292,7 @@ class Core:
     async def admin(self, ctx, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive.
-        
+
         - role: The name of the role to use as the admin role
         """
         server = str(ctx.message.guild.id)
@@ -315,7 +315,7 @@ class Core:
     async def moderator(self, ctx, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive.
-        
+
         - role: The name of the role to use as the moderator role
         """
         server = str(ctx.message.guild.id)
@@ -348,7 +348,7 @@ class Core:
     @checks.is_not_selfbot()
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel.
-        
+
         - state: Whether or not to ignore the current channel
         """
         self._ignore_check(ctx)
@@ -368,7 +368,7 @@ class Core:
     @checks.is_not_selfbot()
     async def server(self, ctx, state: bool):
         """Ignores/unignores the current server.
-        
+
         - state: Whether or not to ignore the current server
         """
         self._ignore_check(ctx)
@@ -395,7 +395,7 @@ class Core:
     @checks.is_owner()
     async def load(self, ctx, name: str):
         """Loads a cog.
-        
+
         - name: The name of the cog to load
         """
         cog_name = 'cogs.{0}'.format(name)
@@ -423,7 +423,7 @@ class Core:
     @checks.is_owner()
     async def unload(self, ctx, name: str):
         """Unloads a cog.
-        
+
         - name: The name of the cog to unload
         """
         if name == 'core':
@@ -460,7 +460,7 @@ class Core:
     @checks.is_owner()
     async def eval(self, ctx, *, code: str):
         """Evaluates Python code
-        
+
         - code: The Python code to run
         """
         if self._eval.get('env') is None:

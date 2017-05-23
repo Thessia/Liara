@@ -28,7 +28,7 @@ class Useful:
     @checks.is_owner()
     async def fullping(self, ctx, amount: int=10):
         """More intensive ping, gives debug info on reaction times.
-        
+
         - amount (optional): The amount of pings to do
         """
         if not 1 < amount < 200:

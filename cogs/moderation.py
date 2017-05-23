@@ -16,7 +16,7 @@ class Moderation:
         """Shows you a user's info.
 
         Defaults to message author if user is not specified.
-        
+
         - user (optional): The user of which you want to get the info of
         """
 
@@ -131,7 +131,7 @@ class Moderation:
     @checks.mod_or_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Bans a member.
-        
+
         - member: The member to ban
         - days_to_clean: The amount of days of message history from the member to clean
         """
@@ -149,7 +149,7 @@ class Moderation:
     @checks.mod_or_permissions(ban_members=True)
     async def hackban(self, ctx, user_id: int):
         """Bans a member by their ID.
-        
+
         - user_id: The user ID to ban
         """
         try:
@@ -167,7 +167,7 @@ class Moderation:
     @checks.mod_or_permissions(kick_members=True)
     async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
         """Kicks a member, removing all their messages in the process.
-                
+
         - member: The member to softban
         - days_to_clean: The amount of days of message history from the member to clean
         """
@@ -186,7 +186,7 @@ class Moderation:
     @checks.mod_or_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member):
         """Kicks a member.
-        
+
         - member: The member to kick
         """
         try:

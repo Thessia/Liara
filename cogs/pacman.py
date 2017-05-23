@@ -143,7 +143,7 @@ class Pacman:
     @checks.is_owner()
     async def add_index(self, ctx, url):
         """Adds an index.
-        
+
         - url: The URL of the index to add
         """
         message = await ctx.send('Indexing...')
@@ -154,7 +154,7 @@ class Pacman:
     @checks.is_owner()
     async def remove_index(self, ctx, _hash: str):
         """Removes an index.
-        
+
         - _hash: The index's hash to remove
         """
         if _hash in self.db['indexes']:
@@ -230,7 +230,7 @@ class Pacman:
     @checks.is_owner()
     async def install_cog(self, ctx, package: str):
         """Installs a cog by its package name.
-        
+
         - package: The package to install
         """
         if not self.pkgmatch.match(package):
