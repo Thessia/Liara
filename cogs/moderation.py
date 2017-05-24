@@ -78,7 +78,14 @@ class Moderation:
         else:
             embed.description = '**ID**: {0.id}'.format(guild)
 
-        embed.add_field(name='Members', value=guild.member_count)
+        if guild.me.permissions_in(ctx.channel).kick_members and ctx.author.permissions_in(ctx.channel).kick_members:
+            dead_members = await ctx.guild.estimate_pruned_members(days=7)
+            members = '{} members, {} of which were active in the past 7 days'.format(guild.member_count,
+                                                                                      guild.member_count - dead_members)
+        else:
+            members = guild.member_count
+
+        embed.add_field(name='Members', value=members)
 
         roles = [x.mention for x in guild.role_hierarchy if not x.is_default()]
         if roles:  # only show roles if the server has any
