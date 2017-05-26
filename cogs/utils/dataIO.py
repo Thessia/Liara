@@ -7,7 +7,7 @@ import __main__
 
 
 class RedisDict(dict):
-    def __init__(self, key, redis):
+    def __init__(self, key, redis, pubsub_namespace='liara'):
         super().__init__()
         self.key = key
         self.redis = redis
@@ -15,7 +15,7 @@ class RedisDict(dict):
         self._ready = threading.Event()
         self._modified = {}
         db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.id = 'liara.{}.data.{}'.format(db, key)
+        self.id = '{}.{}.data.{}'.format(pubsub_namespace, db, key)
         threading.Thread(target=self._initialize, name='dataIO init thread for {}'.format(key), daemon=True).start()
         threading.Thread(target=self._pubsub_listener, name='dataIO pubsub thread for {}'.format(key),
                          daemon=True).start()
