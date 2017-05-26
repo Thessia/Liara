@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import importlib
 import inspect
 import json
@@ -7,10 +8,10 @@ import sys
 import textwrap
 import time
 import traceback
+import types
 
 import aiohttp
 import discord
-import types
 from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
 
@@ -382,8 +383,22 @@ class Core:
 
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
-    async def halt(self, ctx):
-        """Shuts Liara down."""
+    async def halt(self, ctx, skip_confirm=False):
+        """Shuts Liara down.
+
+        - skip_confirm: Whether or not to skip halt confirmation.
+        """
+        if not skip_confirm:
+            def check(_msg):
+                if _msg.author == ctx.message.author and _msg.channel == ctx.message.channel and _msg.content:
+                    return True
+                else:
+                    return False
+            await ctx.send('Are you sure? I have been up since {}.'.format(datetime.datetime.fromtimestamp
+                                                                           (self.liara.boot_time)))
+            message = await self.liara.wait_for('message', check=check)
+            if message.content.lower() not in ['yes', 'yep', 'i\'m sure']:
+                return await ctx.send('Halt aborted.')
         await ctx.send(':wave:')
         self.ignore_db = True
         for cog in list(self.liara.extensions):
