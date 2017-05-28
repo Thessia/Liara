@@ -1,11 +1,16 @@
 import discord
 from discord.ext import commands
-# noinspection PyUnresolvedReferences
-import __main__
 
 
 def owner_check(ctx):
-    return str(ctx.message.author.id) in __main__.liara.owners
+    return str(ctx.author.id) in ctx.bot.owners
+
+
+def role_check(ctx, _role):
+    roles = [x.name.lower() for x in ctx.author.roles]
+    settings = ctx.bot.settings['roles']
+    role = settings.get(str(ctx.guild.id), {}).get('{}_role'.format(_role))
+    return role in roles
 
 
 def is_owner():
@@ -62,24 +67,15 @@ def mod_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if not isinstance(ctx.message.author, discord.Member):
+        if not isinstance(ctx.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.guild.owner:
+        if ctx.author == ctx.guild.owner:
             return True
-        # let's get the roles and compare them to
-        # what we have on file (if we do)
-        roles = [x.name.lower() for x in ctx.message.author.roles]
-        try:
-            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['mod_role'].lower() in roles:
-                return True
-        except KeyError:
-            pass
-        try:
-            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['admin_role'].lower() in roles:
-                return True
-        except KeyError:
-            pass
-        user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
+        if role_check(ctx, 'mod'):
+            return True
+        if role_check(ctx, 'admin'):
+            return True
+        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
         for permission in permissions:
             if permissions[permission]:
                 allowed = user_permissions.get(permission, False)
@@ -93,17 +89,13 @@ def admin_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if not isinstance(ctx.message.author, discord.Member):
+        if not isinstance(ctx.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.guild.owner:
+        if ctx.author == ctx.guild.owner:
             return True
-        try:
-            roles = [x.name.lower() for x in ctx.message.author.roles]
-            if __main__.liara.settings['roles'][str(ctx.message.guild.id)]['admin_role'].lower() in roles:
-                return True
-        except KeyError:
-            pass
-        user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
+        if role_check(ctx, 'admin'):
+            return True
+        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
         for permission in permissions:
             if permissions[permission]:
                 allowed = user_permissions.get(permission, False)
@@ -117,11 +109,11 @@ def serverowner_or_permissions(**permissions):
     def predicate(ctx):
         if owner_check(ctx):
             return True
-        if not isinstance(ctx.message.author, discord.Member):
+        if not isinstance(ctx.author, discord.Member):
             return False
-        if ctx.message.author == ctx.message.guild.owner:
+        if ctx.author == ctx.guild.owner:
             return True
-        user_permissions = dict(ctx.message.author.permissions_in(ctx.message.channel))
+        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
         for permission in permissions:
             allowed = user_permissions.get(permission, False)
             if allowed:
