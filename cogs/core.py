@@ -290,7 +290,7 @@ class Core:
     @commands.guild_only()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
-    async def admin(self, ctx, role: str=None):
+    async def admin(self, ctx, *, role: str=None):
         """Sets Liara's admin role.
         Roles are non-case sensitive.
 
@@ -313,7 +313,7 @@ class Core:
     @commands.guild_only()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
-    async def moderator(self, ctx, role: str=None):
+    async def moderator(self, ctx, *, role: str=None):
         """Sets Liara's moderator role.
         Roles are non-case sensitive.
 
