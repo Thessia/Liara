@@ -13,16 +13,34 @@ class Useful:
         self.liara = liara
         self.event_counter = Counter()
 
+    @staticmethod
+    async def timeit(coro):
+        """Times a coroutine."""
+        before = time.monotonic()
+        coro_result = await coro
+        after = time.monotonic()
+        return after - before, coro_result
+
+    @staticmethod
+    def format_delta(delta):
+        return round(delta * 1000)
+
     @commands.command()
     async def ping(self, ctx):
         """Checks to see if Liara is responding.
-        Also checks for reaction time in milliseconds by checking how long it takes for a "typing" status to go through.
+        Also collects a bunch of other nerd stats.
         """
-        before_typing = time.monotonic()
-        await ctx.trigger_typing()
-        after_typing = time.monotonic()
-        ms = int((after_typing - before_typing) * 1000)
-        await ctx.send('Pong. Pseudo-ping: `{0}ms`'.format(ms))
+        before = time.monotonic()
+        typing_delay = self.format_delta((await self.timeit(ctx.trigger_typing()))[0])
+        message_delay, message = await self.timeit(ctx.send('..'))
+        message_delay = self.format_delta(message_delay)
+        edit_delay = self.format_delta((await self.timeit(message.edit(content='...')))[0])
+        gateway_delay = self.format_delta((await self.timeit(await self.liara.ws.ping()))[0])
+        after = time.monotonic()
+        total_delay = self.format_delta(after - before)
+        await message.edit(content='Pong.\n\n**Stats for nerds**:\nTyping delay: `{}ms`\nMessage send delay: `{}ms`\n'
+                                   'Message edit delay: `{}ms`\nGateway delay: `{}ms`\nTotal: `{}ms`'
+                                   .format(typing_delay, message_delay, edit_delay, gateway_delay, total_delay))
 
     @commands.command(hidden=True)
     @checks.is_owner()
