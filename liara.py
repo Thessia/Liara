@@ -2,10 +2,10 @@
 
 import argparse
 import asyncio
+import bz2
 import datetime
 import json
 import logging
-import bz2
 import sys
 import threading
 import time
