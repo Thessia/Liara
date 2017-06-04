@@ -5,8 +5,8 @@ import asyncio
 import datetime
 import json
 import logging
+import bz2
 import sys
-import tarfile
 import threading
 import time
 import traceback
@@ -199,11 +199,16 @@ if __name__ == '__main__':
 
     # Compress logfiles that were left over from the last run
     os.chdir('logs')
+    if not os.path.exists('old'):
+        os.mkdir('old')
     for item in os.listdir('.'):
         if item.endswith('.log'):
-            with tarfile.open(item + '.tar.gz', mode='w:gz') as tar:
-                tar.add(item)
+            with bz2.open(item + '.bz2', 'w') as f:
+                f.write(open(item, 'rb').read())
             os.remove(item)
+    for item in os.listdir('.'):
+        if item.endswith('.gz') or item.endswith('.bz2'):
+            os.rename(item, 'old/' + item)
     os.chdir('..')
 
     # Define a format
