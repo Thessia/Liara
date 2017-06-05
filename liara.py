@@ -285,7 +285,7 @@ if __name__ == '__main__':
             loop.run_until_complete(liara.logout())
         except Exception:
             exit_code = 1
-            logger.critical(traceback.format_exc())
+            logger.exception()
             loop.run_until_complete(liara.logout())
         finally:
             loop.close()

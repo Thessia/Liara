@@ -43,7 +43,7 @@ class Core:
         else:
             prefix = random.randint(1, 2**8)
             self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
-            self.logger.info('Liara hasn\'t been started before, so her prefix has been set to "{0}".'.format(prefix))
+            self.logger.info('Liara hasn\'t been started before, so her prefix has been set to "{}".'.format(prefix))
 
         if 'cogs' in self.settings:
             for cog in self.settings['cogs']:
@@ -53,7 +53,7 @@ class Core:
                         self.load_cog(cog)
                     except:
                         self.settings['cogs'].remove(cog)
-                        self.logger.warning('{0} could not be loaded. This message will not be shown again.'
+                        self.logger.warning('{} could not be loaded. This message will not be shown again.'
                                             .format(cog))
         else:
             self.settings['cogs'] = ['cogs.core']
@@ -75,7 +75,7 @@ class Core:
                             self.load_cog(cog)
                         except:
                             self.settings['cogs'].remove(cog)  # something went wrong here
-                            self.logger.warning('{0} could not be loaded. This message will not be shown again.'
+                            self.logger.warning('{} could not be loaded. This message will not be shown again.'
                                                 .format(cog))
                 # Unloading cogs
                 for cog in list(self.liara.extensions):
@@ -121,6 +121,11 @@ class Core:
         async with aiohttp.ClientSession() as session:
             async with session.post('https://api.github.com/gists', data=json.dumps(github_file)) as response:
                 return await response.json()
+
+    @staticmethod
+    def get_traceback(exception, limit=None, chain=True):
+        return ''.join(traceback.format_exception(type(exception), exception, exception.__traceback__, limit=limit,
+                                                  chain=chain))
 
     # make IDEA stop acting like a baby
     # noinspection PyShadowingBuiltins,PyUnresolvedReferences
@@ -178,7 +183,7 @@ class Core:
                     await self.liara.process_commands(message)
                     return
             except:
-                self.logger.warning('Removed precondition override "{0}", it was malfunctioning.'
+                self.logger.warning('Removed precondition override "{}", it was malfunctioning.'
                                     .format(override.__name__))
                 self.global_preconditions_overrides.remove(override)
         # Preconditions
@@ -191,7 +196,7 @@ class Core:
                 if out is False:
                     return
             except:
-                self.logger.warning('Removed precondition "{0}", it was malfunctioning.'
+                self.logger.warning('Removed precondition "{}", it was malfunctioning.'
                                     .format(precondition.__name__))
                 self.global_preconditions.remove(precondition)
 
@@ -205,10 +210,9 @@ class Core:
             await self.liara.send_command_help(context)
         elif isinstance(exception, commands_errors.CommandInvokeError):
             exception = exception.original
-            _traceback = traceback.format_tb(exception.__traceback__)
-            _traceback = ''.join(_traceback)
-            error = '`{0}` in command `{1}`: ```py\nTraceback (most recent call last):\n{2}{0}: {3}\n```'\
-                .format(type(exception).__name__, context.command.qualified_name, _traceback, exception)
+            error = '`{}` in command `{}`: ```py\n{}\n```'.format(type(exception).__name__,
+                                                                  context.command.qualified_name,
+                                                                  self.get_traceback(exception))
             await context.send(error)
         elif isinstance(exception, commands_errors.CommandNotFound):
             pass
@@ -251,7 +255,7 @@ class Core:
         - username: The username to use
         """
         await self.liara.user.edit(username=username)
-        await ctx.send('Username changed. Please call me {0} from now on.'.format(username))
+        await ctx.send('Username changed. Please call me {} from now on.'.format(username))
 
     @set_cmd.command()
     @checks.is_owner()
@@ -301,12 +305,12 @@ class Core:
             self.settings['roles'][server] = {}
         if role is not None:
             self.settings['roles'][server]['admin_role'] = role
-            await ctx.send('Admin role set to `{0}` successfully.'.format(role))
+            await ctx.send('Admin role set to `{}` successfully.'.format(role))
         else:
             if 'admin_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('admin_role')
             await ctx.send('Admin role cleared.\n'
-                           'If you didn\'t intend to do this, use `{0}help set admin` for help.'
+                           'If you didn\'t intend to do this, use `{}help set admin` for help.'
                            .format(ctx.prefix))
 
     @set_cmd.command()
@@ -324,12 +328,12 @@ class Core:
             self.settings['roles'][server] = {}
         if role is not None:
             self.settings['roles'][server]['mod_role'] = role
-            await ctx.send('Moderator role set to `{0}` successfully.'.format(role))
+            await ctx.send('Moderator role set to `{}` successfully.'.format(role))
         else:
             if 'mod_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('mod_role')
             await ctx.send('Moderator role cleared.\n'
-                           'If you didn\'t intend to do this, use `{0}help set moderator` for help.'
+                           'If you didn\'t intend to do this, use `{}help set moderator` for help.'
                            .format(ctx.prefix))
 
     def _ignore_check(self, ctx):
@@ -413,18 +417,15 @@ class Core:
 
         - name: The name of the cog to load
         """
-        cog_name = 'cogs.{0}'.format(name)
+        cog_name = 'cogs.{}'.format(name)
         if cog_name not in list(self.liara.extensions):
             if self.liara.shard_id == 0 or self.liara.shard_id is None:
                 try:
                     self.load_cog(cog_name)
-                    await ctx.send('`{0}` loaded successfully.'.format(name))
+                    await ctx.send('`{}` loaded successfully.'.format(name))
                 except Exception as e:
-                    _traceback = traceback.format_tb(e.__traceback__)
-                    _traceback = ''.join(_traceback[2:])
-                    await ctx.send('Unable to load; the cog caused a `{0}`:\n```py\nTraceback '
-                                   '(most recent call last):\n{1}{0}: {2}\n```'
-                                   .format(type(e).__name__, _traceback, e))
+                    await ctx.send('Unable to load; the cog caused a `{}`:\n```py\n{}\n```'
+                                   .format(type(e).__name__, self.get_traceback(e)))
             else:
                 msg = 'Dispatching command to the root shard...'
                 message = await ctx.send(msg)
@@ -445,11 +446,11 @@ class Core:
             await ctx.send('Sorry, I can\'t let you do that. '
                            'If you want to install a custom loader, look into the documentation.')
             return
-        cog_name = 'cogs.{0}'.format(name)
+        cog_name = 'cogs.{}'.format(name)
         if cog_name in list(self.liara.extensions):
             self.liara.unload_extension(cog_name)
             self.settings['cogs'].remove(cog_name)
-            await ctx.send('`{0}` unloaded successfully.'.format(name))
+            await ctx.send('`{}` unloaded successfully.'.format(name))
         else:
             await ctx.send('Unable to unload; that cog isn\'t loaded.')
 
@@ -511,7 +512,7 @@ class Core:
             if output is not None:
                 output = repr(output)
         except Exception as e:
-            output = '{}: {}'.format(type(e).__name__, e)
+            output = '\n'+self.get_traceback(e, 0)
         after = time.monotonic()
         self._eval['count'] += 1
         count = self._eval['count']
@@ -546,7 +547,7 @@ class Core:
             await ctx.trigger_typing()
             gist = await self.create_gist(message, filename='message.md')
             await ctx.send('Sorry, that output was too large, so I uploaded it to gist instead.\n'
-                           '{0}'.format(gist['html_url']))
+                           '{}'.format(gist['html_url']))
 
 
 def setup(liara):
