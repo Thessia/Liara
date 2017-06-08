@@ -105,8 +105,10 @@ class Moderation:
             verification_level = 'Low'
         elif guild.verification_level == discord.VerificationLevel.medium:
             verification_level = 'Medium'
-        else:
+        elif guild.verification_level == discord.VerificationLevel.high:
             verification_level = '(╯°□°）╯︵ ┻━┻'
+        else:
+            verification_level = '┻━┻ ﾐヽ(ಠ益ಠ)ノ彡┻━┻'
 
         if guild.explicit_content_filter == discord.ContentFilter.disabled:
             explicit_level = 'Don\'t scan any messages'
