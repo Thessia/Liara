@@ -205,6 +205,27 @@ class Moderation:
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to kick that person here.')
 
+    @commands.command()
+    @commands.guild_only()
+    @checks.mod_or_permissions(mute_members=True)
+    async def voicekick(self, ctx, member: discord.Member):
+        """Kicks a member from voice.
+
+        - member: The member to kick
+        """
+        if not (member.voice is not None and member.voice.channel is not None):
+            return await ctx.send('That user is not in a voice channel.')
+        overwrite = discord.PermissionOverwrite(connect=False)
+        overwrite = {ctx.guild.default_role: overwrite}
+        reason = 'Voice kick'
+        try:
+            channel = await ctx.guild.create_voice_channel(reason.title(), overwrites=overwrite, reason=reason)
+            await member.move_to(channel, reason=reason)
+            await channel.delete(reason=reason)
+            await ctx.send('Done.')
+        except discord.Forbidden:
+            await ctx.send('Sorry, I don\'t have permission to voice kick that person.')
+
 
 def setup(liara):
     liara.add_cog(Moderation(liara))
