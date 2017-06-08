@@ -9,7 +9,6 @@ import logging
 import sys
 import threading
 import time
-import traceback
 
 import os
 import redis

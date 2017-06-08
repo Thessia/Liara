@@ -17,7 +17,9 @@ class Moderation:
 
         Defaults to message author if user is not specified.
 
-        - user (optional): The user of which you want to get the info of
+        * user: The user of which you want to get the info of
+
+        Arguments marked with * are optional.
         """
 
         if user is None:
@@ -138,17 +140,25 @@ class Moderation:
     @commands.command()
     @commands.guild_only()
     @checks.mod_or_permissions(ban_members=True)
-    async def ban(self, ctx, member: discord.Member, days_to_clean: int=1):
+    async def ban(self, ctx, member: discord.Member, days_to_clean: int=1, reason: str=None):
         """Bans a member.
 
         - member: The member to ban
-        - days_to_clean: The amount of days of message history from the member to clean
+        * days_to_clean: The amount of days of message history from the member to clean
+        * reason: The ban reason
+
+        Arguments marked with * are optional.
         """
         if not 0 <= days_to_clean <= 7:
             await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
+
+        _reason = 'Initiated by {}'.format(ctx.author)
+        if reason is not None:
+            _reason += ', for reason "{}"'.format(reason)
+
         try:
-            await member.ban(delete_message_days=days_to_clean)
+            await member.ban(delete_message_days=days_to_clean, reason=_reason)
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
@@ -174,18 +184,25 @@ class Moderation:
     @commands.command()
     @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
-    async def softban(self, ctx, member: discord.Member, days_to_clean: int=1):
+    async def softban(self, ctx, member: discord.Member, days_to_clean: int=1, reason: str=None):
         """Kicks a member, removing all their messages in the process.
 
         - member: The member to softban
-        - days_to_clean: The amount of days of message history from the member to clean
+        * days_to_clean: The amount of days of message history from the member to clean
+
+        Arguments marked with * are optional.
         """
         if not 0 <= days_to_clean <= 7:
             await ctx.send('Invalid clean value. Use a number from 0 to 7.')
             return
+
+        _reason = 'Initiated by {}'.format(ctx.author)
+        if reason is not None:
+            _reason += ', for reason "{}"'.format(reason)
+
         try:
-            await member.ban(delete_message_days=days_to_clean)
-            await member.unban()
+            await member.ban(delete_message_days=days_to_clean, reason=_reason)
+            await member.unban(reason=_reason)
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to ban that person here.')
@@ -193,13 +210,21 @@ class Moderation:
     @commands.command()
     @commands.guild_only()
     @checks.mod_or_permissions(kick_members=True)
-    async def kick(self, ctx, member: discord.Member):
+    async def kick(self, ctx, member: discord.Member, reason: str=None):
         """Kicks a member.
 
         - member: The member to kick
+        * reason: The reason for kicking this user
+
+        Arguments marked with * are optional.
         """
+
+        _reason = 'Initiated by {}'.format(ctx.author)
+        if reason is not None:
+            _reason += ', for reason "{}"'.format(reason)
+
         try:
-            await member.kick()
+            await member.kick(reason=_reason)
             self.liara.dispatch('kick', member)  # yay for implementing on_kick
             await ctx.send('Done. Good riddance.')
         except discord.Forbidden:
@@ -208,20 +233,25 @@ class Moderation:
     @commands.command()
     @commands.guild_only()
     @checks.mod_or_permissions(mute_members=True)
-    async def voicekick(self, ctx, member: discord.Member):
+    async def voicekick(self, ctx, member: discord.Member, reason: str=None):
         """Kicks a member from voice.
 
         - member: The member to kick
+        * reason: The reason for kicking this user from voice
+
+        Arguments marked with * are optional.
         """
         if not (member.voice is not None and member.voice.channel is not None):
             return await ctx.send('That user is not in a voice channel.')
         overwrite = discord.PermissionOverwrite(connect=False)
         overwrite = {ctx.guild.default_role: overwrite}
-        reason = 'Voice kick'
+        _reason = 'Voice kick initiated by {}'.format(ctx.author)
+        if reason is not None:
+            _reason += ', for reason "{}"'.format(reason)
         try:
-            channel = await ctx.guild.create_voice_channel(reason.title(), overwrites=overwrite, reason=reason)
-            await member.move_to(channel, reason=reason)
-            await channel.delete(reason=reason)
+            channel = await ctx.guild.create_voice_channel('Voice Kick', overwrites=overwrite, reason=_reason)
+            await member.move_to(channel, reason=_reason)
+            await channel.delete(reason=_reason)
             await ctx.send('Done.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to voice kick that person.')
