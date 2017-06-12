@@ -19,6 +19,10 @@ from cogs.utils import checks
 from cogs.utils import dataIO
 
 
+def load_cog(liara, cog_name):  # this function is used to boss shards around (or rather, the main shard)
+    return liara.get_cog('Core').load_cog(cog_name)
+
+
 class Core:
     def __init__(self, liara):
         self.liara = liara
@@ -419,19 +423,15 @@ class Core:
         """
         cog_name = 'cogs.{}'.format(name)
         if cog_name not in list(self.liara.extensions):
-            if self.liara.shard_id == 0 or self.liara.shard_id is None:
-                try:
-                    self.load_cog(cog_name)
-                    await ctx.send('`{}` loaded successfully.'.format(name))
-                except Exception as e:
-                    await ctx.send('Unable to load; the cog caused a `{}`:\n```py\n{}\n```'
-                                   .format(type(e).__name__, self.get_traceback(e)))
+            msg = 'Dispatching command to the root shard...'
+            message = await ctx.send(msg)
+            resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
+            if resp is None:
+                msg = '`{}` loaded sucessfully.'.format(name)
             else:
-                msg = 'Dispatching command to the root shard...'
-                message = await ctx.send(msg)
-                self.liara.publish({'type': 'cog-load', 'cog': 'cogs.moderation'})
-                msg += ' Done!\nThe cog should be loaded on this shard momentarily.'
-                await message.edit(content=msg)
+                msg = 'Unable to load; the cog caused a `{}`:\n```py\n{}\n```'\
+                      .format(type(resp).__name__, self.get_traceback(resp))
+            await message.edit(content=msg)
         else:
             await ctx.send('Unable to load; that cog is already loaded.')
 
@@ -463,12 +463,22 @@ class Core:
         if cog_name in list(self.liara.extensions):
             msg = await ctx.send('`{}` reloading...'.format(name))
             self.liara.unload_extension(cog_name)
-            self.load_cog(cog_name)
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
+            resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
+            if resp is not None:
+                _msg = '`{}` reloaded unsuccessfully on the main shard due to a `{}`:\n```py\n{}\n```\n' \
+                      .format(name, type(resp).__name__, self.get_traceback(resp))
+                _msg += 'Aborting reload on other shards...'
+                await msg.edit(content=_msg)
+                return
+            await msg.edit(content='`{}` reloaded successfully on main shard, waiting for others to catch up...'
+                           .format(name))
+            await asyncio.sleep(1)
             if cog_name in list(self.liara.extensions):
                 await msg.edit(content='`{}` reloaded successfully.'.format(name))
             else:
-                await msg.edit(content='`{}` reloaded unsuccessfully. Check your logs for more details.'.format(name))
+                await msg.edit(content='`{}` reloaded unsuccessfully on a non-main shard. Check your shard\'s logs for '
+                                       'more details. The cog has not been loaded on the main shard.'.format(name))
         else:
             await ctx.send('Unable to reload, that cog isn\'t loaded.')
 

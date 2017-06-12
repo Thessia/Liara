@@ -4,11 +4,13 @@ import argparse
 import asyncio
 import bz2
 import datetime
-import json
 import logging
+import pickle
 import sys
 import threading
 import time
+import uuid
+from concurrent.futures import TimeoutError
 
 import os
 import redis
@@ -36,6 +38,8 @@ class Liara(commands.Bot):
         self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
         self.self_bot = kwargs.get('self_bot', False)
         self.pubsub = None
+        db = str(self.redis.connection_pool.connection_kwargs['db'])
+        self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
         threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True).start()
         super().__init__(*args, **kwargs)
         try:
@@ -47,25 +51,59 @@ class Liara(commands.Bot):
 
     def pubsub_loop(self):
         self.pubsub = self.redis.pubsub()
-        db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.pubsub.subscribe('liara.{}.pubsub'.format(db))
+        _id = self.pubsub_id
+        self.pubsub.subscribe(_id)
         for event in self.pubsub.listen():
             if event['type'] != 'message':
                 continue
             try:
-                _json = json.loads(event['data'].decode())
-                self.dispatch('liara_pubsub_raw_receive', _json)
-                if _json.get('shard_id', self.shard_id) == self.shard_id:
+                _data = pickle.loads(event['data'])
+                if not isinstance(_data, dict):
                     continue
-                if _json.get('payload') is None:
+                # get type, if this is a broken dict just ignore it
+                if _data.get('type') is None:
                     continue
-                self.dispatch('liara_pubsub_receive', _json['payload'])
-            except json.decoder.JSONDecodeError:
+                # ping response
+                if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
+                    self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id'),
+                                                          'response': 'Pong.'}))
+                if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
+                    func = _data.get('function')  # get the function, discard if None
+                    if func is None:
+                        continue
+                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
+                    args = _data.get('args', ())
+                    kwargs = _data.get('kwargs', {})
+                    try:
+                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
+                    except Exception as e:
+                        resp['response'] = e
+                    try:
+                        self.redis.publish(_id, pickle.dumps(resp))
+                    except pickle.PicklingError:  # if the response fails to pickle, return None instead
+                        self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id')}))
+                if _data['type'] == 'response':
+                    self.dispatch('pubsub_{}'.format(_data.get('id')), _data.get('response'))
+            except pickle.UnpicklingError:
                 continue
 
-    def publish(self, payload):
-        db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.redis.publish('liara.{}.pubsub'.format(db), json.dumps({'shard_id': self.shard_id, 'payload': payload}))
+    def publish(self, *args, **kwargs):  # simple helper method for Redis
+        self.redis.publish(self.pubsub_id, *args, **kwargs)
+
+    async def run_on_shard(self, shard, func, *args, **kwargs):
+        _id = str(uuid.uuid4())
+        self.publish(pickle.dumps({'type': 'coderequest', 'id': _id, 'target': shard, 'function': func,
+                                   'args': args, 'kwargs': kwargs}))
+        return await self.wait_for('pubsub_{}'.format(_id))
+
+    async def ping_shard(self, shard):
+        _id = str(uuid.uuid4())
+        self.publish(pickle.dumps({'type': 'ping', 'id': _id, 'target': shard}))
+        try:
+            await self.wait_for('pubsub_{}'.format(_id), timeout=1)
+            return True
+        except TimeoutError:
+            return False
 
     async def on_ready(self):
         self.lockdown = False
@@ -91,6 +129,10 @@ class Liara(commands.Bot):
 
     async def on_message(self, message):
         pass
+
+    def __repr__(self):
+        return '<Liara username={} shard_id={} shard_count={}>'.format(
+            *[repr(x) for x in [self.user.name, self.shard_id, self.shard_count]])
 
 
 async def send_cmd_help(ctx):
@@ -284,7 +326,7 @@ if __name__ == '__main__':
             loop.run_until_complete(liara.logout())
         except Exception:
             exit_code = 1
-            logger.exception()
+            logger.exception('Exception while running Liara.')
             loop.run_until_complete(liara.logout())
         finally:
             loop.close()
