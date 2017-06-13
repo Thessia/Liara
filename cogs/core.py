@@ -456,7 +456,6 @@ class Core:
 
     @commands.command()
     @checks.is_owner()
-    @checks.is_main_shard()
     async def reload(self, ctx, name: str):
         """Reloads a cog."""
         cog_name = 'cogs.{}'.format(name)
