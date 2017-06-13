@@ -39,8 +39,9 @@ class Liara(commands.Bot):
         self.self_bot = kwargs.get('self_bot', False)
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
-        self.pubsub = threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True)
-        self.pubsub.start()
+        self.pubsub_locks = {}  # locks stored here
+        self.pubsub_responses = {}  # responses stored here
+        threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
         super().__init__(*args, **kwargs)
         try:
             loader = self.settings['loader']
@@ -80,11 +81,17 @@ class Liara(commands.Bot):
                 except pickle.PicklingError:  # if the response fails to pickle, return None instead
                     self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id')}))
             if _data['type'] == 'response':
-                self.dispatch('pubsub_{}'.format(_data.get('id')), _data.get('response'))
+                __id = _data.get('id')
+                if __id is None:
+                    return
+                if __id not in self.pubsub_locks:
+                    return
+                self.pubsub_responses[__id] = _data.get('response')
+                self.pubsub_locks[__id].set()
         except pickle.UnpicklingError:
             return
 
-    def pubsub_loop(self):
+    def _pubsub_loop(self):
         pubsub = self.redis.pubsub()
         _id = self.pubsub_id
         pubsub.subscribe(_id)
@@ -96,18 +103,25 @@ class Liara(commands.Bot):
 
     async def run_on_shard(self, shard, func, *args, **kwargs):
         _id = str(uuid.uuid4())
+        self.pubsub_locks[_id] = asyncio.Event()
         self.publish(pickle.dumps({'type': 'coderequest', 'id': _id, 'target': shard, 'function': func,
                                    'args': args, 'kwargs': kwargs}))
-        return await self.wait_for('pubsub_{}'.format(_id))
+        await self.pubsub_locks[_id].wait()
+        del self.pubsub_locks[_id]
+        return self.pubsub_responses.pop(_id)
 
     async def ping_shard(self, shard):
         _id = str(uuid.uuid4())
+        self.pubsub_locks[_id] = asyncio.Event()
         self.publish(pickle.dumps({'type': 'ping', 'id': _id, 'target': shard}))
         try:
-            await self.wait_for('pubsub_{}'.format(_id), timeout=1)
+            await asyncio.wait_for(self.pubsub_locks[_id].wait(), timeout=1)
+            del self.pubsub_responses[_id]
             return True
         except TimeoutError:
             return False
+        finally:
+            del self.pubsub_locks[_id]
 
     async def on_ready(self):
         self.lockdown = False
