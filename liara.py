@@ -215,6 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--message_cache_count', help='sets the maximum amount of messages to cache in liara.messages',
                         default=message_cache, type=int)
     parser.add_argument('--uvloop', help='enables uvloop mode', action='store_true')
+    parser.add_argument('--stateless', help='disables file storage', action='store_true')
     parser.add_argument('token', type=str, help='sets the token', default=token, nargs='?')
     shard_grp = parser.add_argument_group('sharding')
     # noinspection PyUnboundLocalVariable
@@ -251,24 +252,25 @@ if __name__ == '__main__':
             print('uvloop is not installed!')
             exit(1)
 
-    # Logging starts here
-    # Create directory for logs if it doesn't exist
-    if not os.path.exists('logs'):
-        os.mkdir('logs')
+    if not cargs.stateless:
+        # Logging starts here
+        # Create directory for logs if it doesn't exist
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
 
-    # Compress logfiles that were left over from the last run
-    os.chdir('logs')
-    if not os.path.exists('old'):
-        os.mkdir('old')
-    for item in os.listdir('.'):
-        if item.endswith('.log'):
-            with bz2.open(item + '.bz2', 'w') as f:
-                f.write(open(item, 'rb').read())
-            os.remove(item)
-    for item in os.listdir('.'):
-        if item.endswith('.gz') or item.endswith('.bz2'):
-            os.rename(item, 'old/' + item)
-    os.chdir('..')
+        # Compress logfiles that were left over from the last run
+        os.chdir('logs')
+        if not os.path.exists('old'):
+            os.mkdir('old')
+        for item in os.listdir('.'):
+            if item.endswith('.log'):
+                with bz2.open(item + '.bz2', 'w') as f:
+                    f.write(open(item, 'rb').read())
+                os.remove(item)
+        for item in os.listdir('.'):
+            if item.endswith('.gz') or item.endswith('.bz2'):
+                os.rename(item, 'old/' + item)
+        os.chdir('..')
 
     # Define a format
     now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.')[0]
@@ -281,9 +283,10 @@ if __name__ == '__main__':
     else:
         logger.setLevel(logging.INFO)
 
-    handler = logging.FileHandler('logs/liara_{}.log'.format(now))
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if not cargs.stateless:
+        handler = logging.FileHandler('logs/liara_{}.log'.format(now))
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
@@ -295,9 +298,10 @@ if __name__ == '__main__':
     else:
         discord_logger.setLevel(logging.INFO)
 
-    handler = logging.FileHandler('logs/discord_{}.log'.format(now))
-    handler.setFormatter(formatter)
-    discord_logger.addHandler(handler)
+    if not cargs.stateless:
+        handler = logging.FileHandler('logs/discord_{}.log'.format(now))
+        handler.setFormatter(formatter)
+        discord_logger.addHandler(handler)
 
     # Make it clear that we're not doing any Windows support
     def warn_win():
