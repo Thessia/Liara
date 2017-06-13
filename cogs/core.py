@@ -462,6 +462,7 @@ class Core:
         if cog_name in list(self.liara.extensions):
             msg = await ctx.send('`{}` reloading...'.format(name))
             self.liara.unload_extension(cog_name)
+            self.settings['cogs'].remove(cog_name)
             await asyncio.sleep(2)
             resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
             if resp is not None:
