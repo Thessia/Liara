@@ -8,7 +8,6 @@ from discord.ext import commands
 
 try:
     import tabulate
-    import psutil
 except ImportError:
     raise RuntimeError('tabulate and psutil are required for this cog')
 
