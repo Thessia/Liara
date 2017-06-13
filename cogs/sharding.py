@@ -59,7 +59,8 @@ class Sharding:
         for shard, state in shards.items():
             table.append([str(shard) if shard-1 != self.liara.shard_id else str(shard)+'*', state['status'],
                           state.get('guilds', ''), state.get('members', ''),
-                          datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state['status'] else ''])
+                          datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state['status'] == 'online' else
+                          ''])
         table = '```prolog\n{}\n* Current Shard\n```'.format(tabulate.tabulate(table, tablefmt='grid'))
         task.cancel()
         await msg.edit(content=table)
