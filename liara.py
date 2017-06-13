@@ -37,10 +37,10 @@ class Liara(commands.Bot):
         self.send_cmd_help = send_cmd_help
         self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
         self.self_bot = kwargs.get('self_bot', False)
-        self.pubsub = None
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
-        threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True).start()
+        self.pubsub = threading.Thread(name='pubsub', target=self.pubsub_loop, daemon=True)
+        self.pubsub.start()
         super().__init__(*args, **kwargs)
         try:
             loader = self.settings['loader']
@@ -49,43 +49,47 @@ class Liara(commands.Bot):
         except KeyError:
             self.load_extension('cogs.core')
 
-    def pubsub_loop(self):
-        self.pubsub = self.redis.pubsub()
+    def _process_pubsub_event(self, event):
         _id = self.pubsub_id
-        self.pubsub.subscribe(_id)
-        for event in self.pubsub.listen():
-            if event['type'] != 'message':
-                continue
-            try:
-                _data = pickle.loads(event['data'])
-                if not isinstance(_data, dict):
-                    continue
-                # get type, if this is a broken dict just ignore it
-                if _data.get('type') is None:
-                    continue
-                # ping response
-                if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
-                    self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id'),
-                                                          'response': 'Pong.'}))
-                if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
-                    func = _data.get('function')  # get the function, discard if None
-                    if func is None:
-                        continue
-                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
-                    args = _data.get('args', ())
-                    kwargs = _data.get('kwargs', {})
-                    try:
-                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
-                    except Exception as e:
-                        resp['response'] = e
-                    try:
-                        self.redis.publish(_id, pickle.dumps(resp))
-                    except pickle.PicklingError:  # if the response fails to pickle, return None instead
-                        self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id')}))
-                if _data['type'] == 'response':
-                    self.dispatch('pubsub_{}'.format(_data.get('id')), _data.get('response'))
-            except pickle.UnpicklingError:
-                continue
+        if event['type'] != 'message':
+            return
+        try:
+            _data = pickle.loads(event['data'])
+            if not isinstance(_data, dict):
+                return
+            # get type, if this is a broken dict just ignore it
+            if _data.get('type') is None:
+                return
+            # ping response
+            if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
+                self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id'),
+                                                      'response': 'Pong.'}))
+            if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
+                func = _data.get('function')  # get the function, discard if None
+                if func is None:
+                    return
+                resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
+                args = _data.get('args', ())
+                kwargs = _data.get('kwargs', {})
+                try:
+                    resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
+                except Exception as e:
+                    resp['response'] = e
+                try:
+                    self.redis.publish(_id, pickle.dumps(resp))
+                except pickle.PicklingError:  # if the response fails to pickle, return None instead
+                    self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id')}))
+            if _data['type'] == 'response':
+                self.dispatch('pubsub_{}'.format(_data.get('id')), _data.get('response'))
+        except pickle.UnpicklingError:
+            return
+
+    def pubsub_loop(self):
+        pubsub = self.redis.pubsub()
+        _id = self.pubsub_id
+        pubsub.subscribe(_id)
+        for event in pubsub.listen():
+            threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
 
     def publish(self, *args, **kwargs):  # simple helper method for Redis
         self.redis.publish(self.pubsub_id, *args, **kwargs)
