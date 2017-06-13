@@ -462,7 +462,7 @@ class Core:
         if cog_name in list(self.liara.extensions):
             msg = await ctx.send('`{}` reloading...'.format(name))
             self.liara.unload_extension(cog_name)
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
             resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
             if resp is not None:
                 _msg = '`{}` reloaded unsuccessfully on the main shard due to a `{}`:\n```py\n{}\n```\n' \
@@ -472,7 +472,7 @@ class Core:
                 return
             await msg.edit(content='`{}` reloaded successfully on main shard, waiting for others to catch up...'
                            .format(name))
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
             if cog_name in list(self.liara.extensions):
                 await msg.edit(content='`{}` reloaded successfully.'.format(name))
             else:
