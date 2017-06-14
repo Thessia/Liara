@@ -39,8 +39,7 @@ class Liara(commands.Bot):
         self.self_bot = kwargs.get('self_bot', False)
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
-        self.pubsub_locks = {}  # locks stored here
-        self.pubsub_responses = {}  # responses stored here
+        self._pubsub_futures = {}  # futures temporarily stored here
         threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
         super().__init__(*args, **kwargs)
         try:
@@ -84,10 +83,10 @@ class Liara(commands.Bot):
                 __id = _data.get('id')
                 if __id is None:
                     return
-                if __id not in self.pubsub_locks:
+                if __id not in self._pubsub_futures:
                     return
-                self.pubsub_responses[__id] = _data.get('response')
-                self.pubsub_locks[__id].set()
+                self._pubsub_futures[__id].set_result(_data.get('response'))
+                del self._pubsub_futures[__id]
         except pickle.UnpicklingError:
             return
 
@@ -98,30 +97,23 @@ class Liara(commands.Bot):
         for event in pubsub.listen():
             threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
 
-    def publish(self, *args, **kwargs):  # simple helper method for Redis
-        self.redis.publish(self.pubsub_id, *args, **kwargs)
+    def request(self, target, **kwargs):
+        _id = str(uuid.uuid4())
+        self._pubsub_futures[_id] = fut = asyncio.Future()
+        request = {'id': _id, 'target': target}
+        request.update(kwargs)
+        self.redis.publish(self.pubsub_id, pickle.dumps(request))
+        return fut
 
     async def run_on_shard(self, shard, func, *args, **kwargs):
-        _id = str(uuid.uuid4())
-        self.pubsub_locks[_id] = asyncio.Event()
-        self.publish(pickle.dumps({'type': 'coderequest', 'id': _id, 'target': shard, 'function': func,
-                                   'args': args, 'kwargs': kwargs}))
-        await self.pubsub_locks[_id].wait()
-        del self.pubsub_locks[_id]
-        return self.pubsub_responses.pop(_id)
+        return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
 
     async def ping_shard(self, shard):
-        _id = str(uuid.uuid4())
-        self.pubsub_locks[_id] = asyncio.Event()
-        self.publish(pickle.dumps({'type': 'ping', 'id': _id, 'target': shard}))
         try:
-            await asyncio.wait_for(self.pubsub_locks[_id].wait(), timeout=1)
-            del self.pubsub_responses[_id]
+            await asyncio.wait_for(self.request(shard, type='ping'), timeout=1)
             return True
         except TimeoutError:
             return False
-        finally:
-            del self.pubsub_locks[_id]
 
     async def on_ready(self):
         self.lockdown = False
