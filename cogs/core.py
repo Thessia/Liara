@@ -79,7 +79,6 @@ class Core:
         if not self.liara.ready:
             if self.settings[self.liara.instance_id]['mode'] == CoreMode.up:
                 self.settings[self.liara.instance_id]['mode'] = CoreMode.boot
-        print(self.settings)
         await self.liara.wait_until_ready()
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
@@ -192,7 +191,6 @@ class Core:
 
     async def on_message(self, message):
         mode = self.settings.get(self.liara.instance_id, {}).get('mode', CoreMode.down)
-        print(mode)
         if mode in (CoreMode.down, CoreMode.boot):
             return
         if str(message.author.id) in self.liara.owners:  # *always* process owner commands
