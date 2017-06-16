@@ -9,6 +9,7 @@ import textwrap
 import time
 import traceback
 import types
+from enum import Enum
 
 import aiohttp
 import discord
@@ -23,6 +24,13 @@ def load_cog(liara, cog_name):  # this function is used to boss shards around (o
     return liara.get_cog('Core').load_cog(cog_name)
 
 
+class CoreMode(Enum):
+    up = 'up'  # respond to everyone (within checks)
+    maintenance = 'maintenance'  # respond to owners
+    down = 'down'  # respond to no one
+    boot = 'boot'  # same as down, should only be used before the first on_ready
+
+
 class Core:
     def __init__(self, liara):
         self.liara = liara
@@ -34,6 +42,7 @@ class Core:
         self.global_preconditions_overrides = [self.ignore_overrides]  # overrides to the preconditions
         self._eval = {}
         self.loop = None  # make pycharm stop complaining
+        self.mode = CoreMode.boot
 
     def __unload(self):
         self.settings.die = True
@@ -170,11 +179,17 @@ class Core:
             self.settings['cogs'].append(name)
         sys.modules[name] = module
 
+    async def on_ready(self):
+        if self.mode == CoreMode.boot:
+            self.mode = CoreMode.up
+
     async def on_message(self, message):
-        if self.liara.lockdown:
+        if self.mode in (CoreMode.down, CoreMode.boot):
             return
         if str(message.author.id) in self.liara.owners:  # *always* process owner commands
             await self.liara.process_commands(message)
+            return
+        if self.mode == CoreMode.maintenance:
             return
         # Overrides start here (yay)
         for override in self.global_preconditions_overrides:

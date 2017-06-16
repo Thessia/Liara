@@ -30,7 +30,6 @@ class Liara(commands.Bot):
         self.boot_time = time.time()  # for uptime tracking, we'll use this later
         self.logger = logging.getLogger('liara')
         self.logger.info('Liara is booting, please wait...')
-        self.lockdown = True  # so we don't process any messages before on_ready
         self.settings = dataIO.load('settings')
         self.owner = None  # this gets updated in on_ready
         self.invite_url = None  # this too
@@ -116,7 +115,6 @@ class Liara(commands.Bot):
             return False
 
     async def on_ready(self):
-        self.lockdown = False
         self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
                        .format(self.user))
         self.logger.info('Liara is connected!')
