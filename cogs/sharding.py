@@ -2,6 +2,7 @@ import aiohttp
 import json
 import asyncio
 import datetime
+import platform
 
 import random
 from discord.ext import commands
@@ -11,6 +12,7 @@ from cogs.utils import checks
 
 try:
     import tabulate
+    import psutil
 except ImportError:
     raise RuntimeError('tabulate and psutil are required for this cog')
 
@@ -21,7 +23,9 @@ tabulate.MIN_PADDING = 0  # makes for a neater table
 def gather_info(liara):
     return {'status': liara.settings[liara.instance_id]['mode'].value, 'guilds': len(liara.guilds),
             'members': len(set(liara.get_all_members())), 'up_since': liara.boot_time,
-            'messages_seen': liara.get_cog('Sharding').messages}
+            'messages_seen': liara.get_cog('Sharding').messages, 'host': platform.node().lower(),
+            'memory': psutil.Process().memory_full_info().uss / 1024**2,
+            'host_uptime': psutil.boot_time()}
 
 
 def set_mode(liara, mode):
@@ -60,8 +64,17 @@ class Sharding:
             await message.edit(content=await self.get_line())
 
     @shards.command()
-    async def list(self, ctx):
-        """Lists all shards."""
+    async def list(self, ctx, mode='generic'):
+        """Lists all shards.
+
+        * mode: "generic" or "host"
+
+        Arguments marked with * are optional.
+        """
+        if mode.lower() not in ('generic', 'host'):
+            await ctx.send('Invalid mode.')
+            return await self.liara.send_command_help(ctx)
+
         msg = await ctx.send(await self.get_line())
         task = self.liara.loop.create_task(self.edit_task(msg))
         shards = {}
@@ -73,13 +86,26 @@ class Sharding:
                 shards[shard] = {'status': CoreMode.down.value}
             else:
                 shards[shard] = await self.liara.run_on_shard(shard-1, gather_info)
-        table = [['Active', 'Shard', 'Status', 'Guilds', 'Members', 'Up Since', 'Messages']]
-        for shard, state in shards.items():
-            line = ['*' if shard - 1 == self.liara.shard_id else '', shard, state['status'], state.get('guilds', ''),
-                    state.get('members', ''),
-                    datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state.get('up_since') else '',
-                    state.get('messages_seen', '')]
-            table.append(line)
+
+        table = []
+        if mode == 'generic':
+            table = [['Active', 'Shard', 'Status', 'Guilds', 'Members', 'Messages', ]]
+            for shard, state in shards.items():
+                line = ['*' if shard - 1 == self.liara.shard_id else '', shard, state['status'],
+                        state.get('guilds', ''),
+                        state.get('members', ''),
+                        state.get('messages_seen', '')]
+                table.append(line)
+        if mode == 'host':
+            table = [['Active', 'Shard', 'Status', 'Host', 'Memory', 'Up Since', 'Host Up Since']]
+            for shard, state in shards.items():
+                line = ['*' if shard - 1 == self.liara.shard_id else '', shard, state['status'],
+                        state.get('host', ''),
+                        state.get('memory', ''),
+                        datetime.datetime.utcfromtimestamp(state.get('up_since', 0)) if state.get('up_since') else '',
+                        datetime.datetime.utcfromtimestamp(state.get('host_uptime', 0)) if state.get('host_uptime')
+                        else '']
+                table.append(line)
         table = '```prolog\n{}\n```'.format(
             tabulate.tabulate(table, tablefmt='psql', headers='firstrow'))
         task.cancel()
@@ -119,6 +145,25 @@ class Sharding:
             return await ctx.send('Shard not online.')
         await self.liara.run_on_shard(shard-1, _halt)
         await ctx.send('Halt command sent.')
+
+    @shards.command()
+    @checks.is_owner()
+    async def halt_all(self, ctx):
+        """Halts all shards."""
+        msg = await ctx.send(await self.get_line())
+        task = self.liara.loop.create_task(self.edit_task(msg))
+
+        shards = []
+        for shard in range(0, self.liara.shard_count):
+            state = await self.liara.ping_shard(shard)
+            if state and shard != self.liara.shard_id:
+                shards.append(shard)
+
+        for shard in shards:
+            await self.liara.run_on_shard(shard, _halt)
+        task.cancel()
+        await msg.edit(content='Thank you for using Liara.')
+        await self.liara.run_on_shard(self.liara.shard_id, _halt)
 
 
 def setup(liara):
