@@ -42,7 +42,6 @@ class Core:
         self.global_preconditions_overrides = [self.ignore_overrides]  # overrides to the preconditions
         self._eval = {}
         self.loop = None  # make pycharm stop complaining
-        self.mode = CoreMode.boot
 
     def __unload(self):
         self.settings.die = True
@@ -50,6 +49,7 @@ class Core:
 
     async def post(self):
         """Power-on self test. Beep boop."""
+        self.liara.owners = []
         if 'prefixes' in self.settings:
             self.liara.command_prefix = self.settings['prefixes']
             self.logger.info('Liara\'s prefixes are: ' + ', '.join(self.liara.command_prefix))
@@ -74,6 +74,12 @@ class Core:
             self.settings['roles'] = {}
         if 'ignores' not in self.settings:
             self.settings['ignores'] = {}
+        if self.liara.instance_id not in self.settings:
+            self.settings[self.liara.instance_id] = {'mode': CoreMode.boot}
+        if not self.liara.ready:
+            if self.settings[self.liara.instance_id]['mode'] == CoreMode.up:
+                self.settings[self.liara.instance_id]['mode'] = CoreMode.boot
+        print(self.settings)
         await self.liara.wait_until_ready()
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
@@ -180,16 +186,19 @@ class Core:
         sys.modules[name] = module
 
     async def on_ready(self):
-        if self.mode == CoreMode.boot:
-            self.mode = CoreMode.up
+        self.liara.ready = True
+        if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
+            self.settings[self.liara.instance_id]['mode'] = CoreMode.up
 
     async def on_message(self, message):
-        if self.mode in (CoreMode.down, CoreMode.boot):
+        mode = self.settings.get(self.liara.instance_id, {}).get('mode', CoreMode.down)
+        print(mode)
+        if mode in (CoreMode.down, CoreMode.boot):
             return
         if str(message.author.id) in self.liara.owners:  # *always* process owner commands
             await self.liara.process_commands(message)
             return
-        if self.mode == CoreMode.maintenance:
+        if mode == CoreMode.maintenance:
             return
         # Overrides start here (yay)
         for override in self.global_preconditions_overrides:

@@ -6,11 +6,13 @@ import bz2
 import datetime
 import logging
 import pickle
+import platform
 import sys
 import threading
 import time
 import uuid
 from concurrent.futures import TimeoutError
+from hashlib import sha256
 
 import os
 import redis
@@ -26,8 +28,11 @@ class Liara(commands.Bot):
         if self.redis is None:
             raise AssertionError('No redis instance specified')
         self.test = kwargs.pop('test', False)
-        self.args = kwargs.pop('cargs', None)  # not used in most code, just a nice thing to have (optional)
+        self.args = kwargs.pop('cargs', None)
         self.boot_time = time.time()  # for uptime tracking, we'll use this later
+        # used for keeping track of *this* instance over reboots
+        self.instance_id = sha256('{}_{}_{}_{}'.format(platform.node(), os.getcwd(), self.args.shard_id,
+                                                       self.args.shard_count).encode()).hexdigest()
         self.logger = logging.getLogger('liara')
         self.logger.info('Liara is booting, please wait...')
         self.settings = dataIO.load('settings')
@@ -47,6 +52,7 @@ class Liara(commands.Bot):
             self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
         except KeyError:
             self.load_extension('cogs.core')
+        self.ready = False
 
     def _process_pubsub_event(self, event):
         _id = self.pubsub_id
