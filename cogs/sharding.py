@@ -12,15 +12,22 @@ except ImportError:
     raise RuntimeError('tabulate and psutil are required for this cog')
 
 
+tabulate.MIN_PADDING = 0  # makes for a neater table
+
+
 def gather_info(liara):
     return {'status': 'online', 'guilds': len(liara.guilds), 'members': len(set(liara.get_all_members())),
-            'up_since': liara.boot_time}
+            'up_since': liara.boot_time, 'messages_seen': liara.get_cog('Sharding').messages}
 
 
 class Sharding:
     def __init__(self, liara):
         self.liara = liara
         self.lines = []
+        self.messages = 0
+
+    async def on_message(self, _):
+        self.messages += 1
 
     @commands.group(invoke_without_command=True)
     async def shards(self, ctx):
@@ -54,13 +61,14 @@ class Sharding:
                 shards[shard] = {'status': 'offline'}
             else:
                 shards[shard] = await self.liara.run_on_shard(shard-1, gather_info)
-        table = [['ID', 'Status', 'Guilds', 'Members', 'Up Since']]
+        table = [['Active', 'Shard', 'Status', 'Guilds', 'Members', 'Up Since', 'Messages']]
         for shard, state in shards.items():
-            table.append([str(shard) if shard-1 != self.liara.shard_id else str(shard)+'*', state['status'],
+            table.append(['*' if shard-1 == self.liara.shard_id else '', shard, state['status'],
                           state.get('guilds', ''), state.get('members', ''),
                           datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state['status'] == 'online' else
-                          ''])
-        table = '```prolog\n{}\n* Current Shard\n```'.format(tabulate.tabulate(table, tablefmt='grid'))
+                          '', state.get('messages_seen', '')])
+        table = '```prolog\n{}\n```'.format(
+            tabulate.tabulate(table, tablefmt='fancy_grid', headers="firstrow"))
         task.cancel()
         await msg.edit(content=table)
 
