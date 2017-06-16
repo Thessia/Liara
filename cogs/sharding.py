@@ -6,6 +6,9 @@ import datetime
 import random
 from discord.ext import commands
 
+from cogs.core import CoreMode
+from cogs.utils import checks
+
 try:
     import tabulate
 except ImportError:
@@ -16,8 +19,17 @@ tabulate.MIN_PADDING = 0  # makes for a neater table
 
 
 def gather_info(liara):
-    return {'status': 'online', 'guilds': len(liara.guilds), 'members': len(set(liara.get_all_members())),
-            'up_since': liara.boot_time, 'messages_seen': liara.get_cog('Sharding').messages}
+    return {'status': liara.settings[liara.instance_id]['mode'].value, 'guilds': len(liara.guilds),
+            'members': len(set(liara.get_all_members())), 'up_since': liara.boot_time,
+            'messages_seen': liara.get_cog('Sharding').messages}
+
+
+def set_mode(liara, mode):
+    liara.settings[liara.instance_id]['mode'] = mode
+
+
+def _halt(liara):
+    liara.loop.create_task(liara.get_cog('Core').halt_())
 
 
 class Sharding:
@@ -58,17 +70,18 @@ class Sharding:
             shards[shard+1] = status
         for shard, status in dict(shards).items():
             if not status:
-                shards[shard] = {'status': 'offline'}
+                shards[shard] = {'status': CoreMode.down.value}
             else:
                 shards[shard] = await self.liara.run_on_shard(shard-1, gather_info)
         table = [['Active', 'Shard', 'Status', 'Guilds', 'Members', 'Up Since', 'Messages']]
         for shard, state in shards.items():
-            table.append(['*' if shard-1 == self.liara.shard_id else '', shard, state['status'],
-                          state.get('guilds', ''), state.get('members', ''),
-                          datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state['status'] == 'online' else
-                          '', state.get('messages_seen', '')])
+            line = ['*' if shard - 1 == self.liara.shard_id else '', shard, state['status'], state.get('guilds', ''),
+                    state.get('members', ''),
+                    datetime.datetime.fromtimestamp(state.get('up_since', 0)) if state.get('up_since') else '',
+                    state.get('messages_seen', '')]
+            table.append(line)
         table = '```prolog\n{}\n```'.format(
-            tabulate.tabulate(table, tablefmt='fancy_grid', headers="firstrow"))
+            tabulate.tabulate(table, tablefmt='psql', headers='firstrow'))
         task.cancel()
         await msg.edit(content=table)
 
@@ -76,6 +89,36 @@ class Sharding:
     async def get(self, ctx):
         """Gets the current shard."""
         await ctx.send('I am shard {} of {}.'.format(self.liara.shard_id+1, self.liara.shard_count))
+
+    @shards.command()
+    @checks.is_owner()
+    async def set_mode(self, ctx, shard: int, mode: CoreMode):
+        """Sets a shard's mode.
+
+        - shard: The shard of which you want to set the mode
+        - mode: The mode you want to set the shard to
+        """
+        active = await self.liara.ping_shard(shard-1)
+        if not active:
+            return await ctx.send('Shard not online.')
+        if self.liara.shard_id == shard-1 and mode in (CoreMode.down, CoreMode.boot):
+            return await ctx.send('This action would be too dangerous to perform on the current shard. Try running '
+                                  'this command from a different shard targeting this one.')
+        await self.liara.run_on_shard(shard-1, set_mode, mode)
+        await ctx.send('Mode set.')
+
+    @shards.command(aliases=['shutdown'])
+    @checks.is_owner()
+    async def halt(self, ctx, shard: int):
+        """Halts a shard.
+
+        - shard: The shard you want to halt
+        """
+        active = await self.liara.ping_shard(shard-1)
+        if not active:
+            return await ctx.send('Shard not online.')
+        await self.liara.run_on_shard(shard-1, _halt)
+        await ctx.send('Halt command sent.')
 
 
 def setup(liara):

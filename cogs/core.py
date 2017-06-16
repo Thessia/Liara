@@ -28,7 +28,7 @@ class CoreMode(Enum):
     up = 'up'  # respond to everyone (within checks)
     maintenance = 'maintenance'  # respond to owners
     down = 'down'  # respond to no one
-    boot = 'boot'  # same as down, should only be used before the first on_ready
+    boot = 'boot'  # respond to no one until the next boot
 
 
 class Core:
@@ -80,6 +80,9 @@ class Core:
             if self.settings[self.liara.instance_id]['mode'] == CoreMode.up:
                 self.settings[self.liara.instance_id]['mode'] = CoreMode.boot
         await self.liara.wait_until_ready()
+        self.liara.ready = True
+        if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
+            self.settings[self.liara.instance_id]['mode'] = CoreMode.up
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
     async def maintenance_loop(self):
@@ -183,11 +186,6 @@ class Core:
         if name not in self.settings['cogs']:
             self.settings['cogs'].append(name)
         sys.modules[name] = module
-
-    async def on_ready(self):
-        self.liara.ready = True
-        if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
-            self.settings[self.liara.instance_id]['mode'] = CoreMode.up
 
     async def on_message(self, message):
         mode = self.settings.get(self.liara.instance_id, {}).get('mode', CoreMode.down)
@@ -411,6 +409,13 @@ class Core:
             self.settings['ignores'][server]['server_ignore'] = False
             await ctx.send('Server unignored.')
 
+    async def halt_(self):
+        self.ignore_db = True
+        for cog in list(self.liara.extensions):
+            self.liara.unload_extension(cog)
+        await asyncio.sleep(2)  # to let some functions clean up their mess
+        await self.liara.logout()
+
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
     async def halt(self, ctx, skip_confirm=False):
@@ -430,11 +435,7 @@ class Core:
             if message.content.lower() not in ['yes', 'yep', 'i\'m sure']:
                 return await ctx.send('Halt aborted.')
         await ctx.send(':wave:')
-        self.ignore_db = True
-        for cog in list(self.liara.extensions):
-            self.liara.unload_extension(cog)
-        await asyncio.sleep(2)  # to let some functions clean up their mess
-        await self.liara.logout()
+        await self.halt_()
 
     @commands.command()
     @checks.is_owner()
