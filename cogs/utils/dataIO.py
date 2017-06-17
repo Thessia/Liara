@@ -48,8 +48,11 @@ class RedisDict(dict):
     def _loop(self):
         while not self.die:
             for item in list(self):
-                new = pickle.loads(pickle.dumps(super().get(item)))
                 old = self._modified.get(item)
+                try:
+                    new = pickle.loads(pickle.dumps(super().get(item)))
+                except pickle.PicklingError:
+                    new = old
 
                 if new != old:
                     try:
