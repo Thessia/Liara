@@ -150,6 +150,7 @@ class Liara(commands.Bot):
 
 
 async def send_cmd_help(ctx):
+    ctx.invoked_with = 'help'
     if ctx.invoked_subcommand:
         _help = await ctx.bot.formatter.format_help_for(ctx, ctx.invoked_subcommand)
     else:
