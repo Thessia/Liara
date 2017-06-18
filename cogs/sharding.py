@@ -54,7 +54,7 @@ class Sharding:
         if not self.lines:
             async with aiohttp.ClientSession() as session:
                 async with session.get('https://gist.githubusercontent.com/Pandentia/373f23a4443e4c363b653777f296301e/'
-                                       'raw/92fa3de2b06dfd6bc3cadc969673f07de0467b5a/sims_loading_lines.json') as resp:
+                                       'raw/e693a1c608b2048e6cdff8dda399fa14b8cad838/sims_loading_lines.json') as resp:
                     self.lines = json.loads(await resp.text())
         return '*{}...*'.format(random.choice(self.lines))
 
