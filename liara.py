@@ -68,7 +68,7 @@ class Liara(commands.Bot):
             # ping response
             if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
                 self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
-                                                      'response': 'Pong.'}))
+                                                    'response': 'Pong.'}))
             if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
                 func = _data.get('function')  # get the function, discard if None
                 if func is None:
