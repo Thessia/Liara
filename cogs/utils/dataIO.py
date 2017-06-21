@@ -1,9 +1,10 @@
+import json
 import threading
 import time
-import pickle
-import json
+
 # noinspection PyUnresolvedReferences
 import __main__
+import dill
 
 
 class RedisDict(dict):
@@ -27,8 +28,8 @@ class RedisDict(dict):
         threading.Thread(target=self._loop, name='dataIO loop thread for {}'.format(self.key), daemon=True).start()
 
     def _set(self, key):
-        _key = pickle.dumps(key)
-        value = pickle.dumps(super().__getitem__(key))
+        _key = dill.dumps(key)
+        value = dill.dumps(super().__getitem__(key))
         self.redis.hset(self.key, _key, value)
         self.redis.publish(self.id, json.dumps({
             'origin': self.uuid,
@@ -37,11 +38,11 @@ class RedisDict(dict):
         }))
 
     def _get(self, key):
-        out = self.redis.hget(self.key, pickle.dumps(key))
-        return pickle.loads(out) if out is not None else None
+        out = self.redis.hget(self.key, dill.dumps(key))
+        return dill.loads(out) if out is not None else None
 
     def _pull(self):
-        redis_copy = {pickle.loads(k): pickle.loads(v) for k, v in self.redis.hgetall(self.key).items()}
+        redis_copy = {dill.loads(k): dill.loads(v) for k, v in self.redis.hgetall(self.key).items()}
         super().clear()
         super().update(redis_copy)
 
@@ -50,15 +51,15 @@ class RedisDict(dict):
             for item in list(self):
                 old = self._modified.get(item)
                 try:
-                    new = pickle.loads(pickle.dumps(super().get(item)))
-                except pickle.PicklingError:
+                    new = dill.loads(dill.dumps(super().get(item)))
+                except dill.PicklingError:
                     new = old
 
                 if new != old:
                     try:
                         self._set(item)
                         self._modified[item] = new
-                    except pickle.PickleError:
+                    except dill.PickleError:
                         self._modified.pop(item, None)
             time.sleep(0.01)
 
@@ -73,7 +74,7 @@ class RedisDict(dict):
             if message['origin'] == self.uuid:
                 continue
             if message['action'] == 'get':
-                key = pickle.loads(eval(message['key']))
+                key = dill.loads(eval(message['key']))
                 super().__setitem__(key, self._get(key))
             if message['action'] == 'pull':
                 self._pull()
