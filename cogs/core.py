@@ -149,8 +149,10 @@ class Core:
                                                   chain=chain))
 
     # make IDEA stop acting like a baby
-    # noinspection PyShadowingBuiltins,PyUnresolvedReferences
+    # noinspection PyShadowingBuiltins
     def load_cog(self, name):
+        self.logger.debug('Attempting to load cog {}'.format(name))
+
         if name in self.liara.extensions:
             return
 
@@ -158,6 +160,7 @@ class Core:
 
         try:
             if self.liara.shard_id is None or self.liara.shard_id == 0:
+                self.logger.debug('Loading cog {} from disk into Redis'.format(name))
                 module = importlib.import_module(name)
                 importlib.reload(module)
                 del sys.modules[name]
@@ -186,6 +189,8 @@ class Core:
         if name not in self.settings['cogs']:
             self.settings['cogs'].append(name)
         sys.modules[name] = module
+
+        self.logger.debug('Cog {} loaded sucessfully'.format(name))
 
     async def on_message(self, message):
         mode = self.settings.get(self.liara.instance_id, {}).get('mode', CoreMode.down)
@@ -240,13 +245,6 @@ class Core:
             await context.send(error)
         elif isinstance(exception, commands_errors.CommandNotFound):
             pass
-
-    async def on_liara_pubsub_receive(self, data):
-        if self.liara.shard_id != 0:
-            return
-        if data.get('type') != 'cog-load':
-            return
-        self.load_cog(data['cog'])
 
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
