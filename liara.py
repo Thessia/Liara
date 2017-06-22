@@ -60,30 +60,38 @@ class Liara(commands.Bot):
             return
         try:
             _data = dill.loads(event['data'])
+            target = _data.get('target')
+            broadcast = target == 'all'
             if not isinstance(_data, dict):
                 return
             # get type, if this is a broken dict just ignore it
             if _data.get('type') is None:
                 return
             # ping response
-            if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
-                self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
-                                                    'response': 'Pong.'}))
-            if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
-                func = _data.get('function')  # get the function, discard if None
-                if func is None:
-                    return
-                resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
-                args = _data.get('args', ())
-                kwargs = _data.get('kwargs', {})
-                try:
-                    resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
-                except Exception as e:
-                    resp['response'] = e
-                try:
-                    self.redis.publish(_id, dill.dumps(resp))
-                except dill.PicklingError:  # if the response fails to dill, return None instead
-                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id')}))
+            if target == self.shard_id or broadcast:
+                if _data['type'] == 'ping':
+                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
+                                                        'response': 'Pong.'}))
+                if _data['type'] == 'coderequest':
+                    func = _data.get('function')  # get the function, discard if None
+                    if func is None:
+                        return
+                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
+                    if broadcast:
+                        resp['from'] = self.shard_id
+                    args = _data.get('args', ())
+                    kwargs = _data.get('kwargs', {})
+                    try:
+                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
+                    except Exception as e:
+                        resp['response'] = e
+                    try:
+                        self.redis.publish(_id, dill.dumps(resp))
+                    except dill.PicklingError:  # if the response fails to dill, return None instead
+                        resp = {'type': 'response', 'id': _data.get('id')}
+                        if broadcast:
+                            resp['from'] = self.shard_id
+                        self.redis.publish(_id, dill.dumps(resp))
             if _data['type'] == 'response':
                 __id = _data.get('id')
                 if __id is None:
