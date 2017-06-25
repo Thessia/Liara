@@ -61,7 +61,7 @@ class RedisDict(dict):
                         self._modified[item] = new
                     except dill.PickleError:
                         self._modified.pop(item, None)
-            time.sleep(0.01)
+            time.sleep(0.1)
 
     def _pubsub_listener(self):
         self._ready.wait()
