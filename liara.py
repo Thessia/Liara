@@ -22,6 +22,17 @@ from discord.ext import commands
 from cogs.utils import dataIO
 
 
+class NoResponse:
+    def __repr__(self):
+        return '<NoResponse>'
+
+    def __eq__(self, other):
+        if isinstance(other, NoResponse):
+            return True
+        else:
+            return False
+
+
 class Liara(commands.Bot):
     def __init__(self, *args, **kwargs):
         self.redis = kwargs.pop('redis', None)
@@ -44,7 +55,9 @@ class Liara(commands.Bot):
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
         self._pubsub_futures = {}  # futures temporarily stored here
+        self._pubsub_broadcast_cache = {}
         threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
+        threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
         super().__init__(*args, **kwargs)
         try:
             loader = self.settings['loader']
@@ -94,12 +107,19 @@ class Liara(commands.Bot):
                         self.redis.publish(_id, dill.dumps(resp))
             if _data['type'] == 'response':
                 __id = _data.get('id')
+                _from = _data.get('from')
                 if __id is None:
                     return
                 if __id not in self._pubsub_futures:
                     return
-                self._pubsub_futures[__id].set_result(_data.get('response'))
-                del self._pubsub_futures[__id]
+                if __id not in self._pubsub_broadcast_cache and _from is not None:
+                    return
+                if _from is None:
+                    self._pubsub_futures[__id].set_result(_data.get('response'))
+                    del self._pubsub_futures[__id]
+                else:
+                    self._pubsub_broadcast_cache[__id][_from] = _data.get('response')
+
         except dill.UnpicklingError:
             return
 
@@ -110,20 +130,35 @@ class Liara(commands.Bot):
         for event in pubsub.listen():
             threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
 
-    def request(self, target, **kwargs):
+    def _pubsub_cache_loop(self):
+        while True:
+            for k, v in dict(self._pubsub_broadcast_cache).items():
+                contents = [v[x] for x in v if x != 'expires']
+                if v['expires'] < time.monotonic() or NoResponse() not in contents:
+                    del v['expires']
+                    self._pubsub_futures[k].set_result(v)
+                    del self._pubsub_futures[k]
+                    del self._pubsub_broadcast_cache[k]
+            time.sleep(0.01)  # be nice to the host
+
+    def request(self, target, broadcast_timeout=1, **kwargs):
         _id = str(uuid.uuid4())
         self._pubsub_futures[_id] = fut = asyncio.Future()
         request = {'id': _id, 'target': target}
         request.update(kwargs)
+        if target == 'all':
+            cache = {k: NoResponse() for k in range(0, self.shard_count)}  # prepare the cache
+            cache['expires'] = time.monotonic() + broadcast_timeout
+            self._pubsub_broadcast_cache[_id] = cache
         self.redis.publish(self.pubsub_id, dill.dumps(request))
         return fut
 
     async def run_on_shard(self, shard, func, *args, **kwargs):
         return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
 
-    async def ping_shard(self, shard):
+    async def ping_shard(self, shard, timeout=1):
         try:
-            await asyncio.wait_for(self.request(shard, type='ping'), timeout=1)
+            await asyncio.wait_for(self.request(shard, type='ping'), timeout=timeout)
             return True
         except TimeoutError:
             return False
