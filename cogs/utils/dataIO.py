@@ -17,10 +17,10 @@ class RedisDict(dict):
         self._modified = {}
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.id = '{}.{}.data.{}'.format(pubsub_namespace, db, key)
+        self.uuid = hex(int(time.time() * 10 ** 7))[2:]
         threading.Thread(target=self._initialize, name='dataIO init thread for {}'.format(key), daemon=True).start()
         threading.Thread(target=self._pubsub_listener, name='dataIO pubsub thread for {}'.format(key),
                          daemon=True).start()
-        self.uuid = hex(int(time.time() * 10 ** 7))[2:]
 
     def _initialize(self):
         self._pull()
