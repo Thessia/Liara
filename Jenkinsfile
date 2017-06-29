@@ -2,12 +2,13 @@ pipeline {
     agent {
         docker {
             image 'pandentia/jenkins-discordpy-rewrite'
+            args '-u 0'
         }
     }
     stages {
         stage('Dependencies') {
             steps {
-                sh 'pip install -r requirements.txt'
+                sh 'pip3 install -r requirements.txt'
             }
         }
         stage('Test') {
