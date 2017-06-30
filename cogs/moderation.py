@@ -6,6 +6,17 @@ from discord.ext import commands
 from cogs.utils import checks
 
 
+class MemberIDConverter(commands.MemberConverter):
+    async def convert(self, ctx, argument):
+        try:
+            return await super().convert(ctx, argument)
+        except commands.BadArgument:
+            try:
+                return int(argument)
+            except ValueError:
+                raise commands.BadArgument()
+
+
 class Moderation:
     def __init__(self, liara):
         self.liara = liara
@@ -255,6 +266,64 @@ class Moderation:
             await ctx.send('Done.')
         except discord.Forbidden:
             await ctx.send('Sorry, I don\'t have permission to voice kick that person.')
+
+    @commands.group('clean', aliases=['cleanup', 'purge'], invoke_without_command=True)
+    @commands.guild_only()
+    @checks.mod_or_permissions(manage_messages=True)
+    async def clean_cmd(self, ctx):
+        """Message clean up command group."""
+        await self.liara.send_command_help(ctx)
+
+    @clean_cmd.command()
+    @commands.guild_only()
+    @checks.mod_or_permissions(manage_messages=True)
+    async def member(self, ctx, member: MemberIDConverter, limit: int=100, channel: discord.TextChannel=None):
+        """Cleans up a member's messages.
+
+        - member: A member or ID to clean up
+        * limit: How many messages to scan for the specified member
+        * channel: The channel to scan the messages from (defaults to current channel)
+
+        Arguments marked with * are optional.
+        """
+        if channel is None:
+            channel = ctx.channel
+
+        if isinstance(member, discord.Member):
+            def predicate(message):
+                return message.author == member
+        else:
+            def predicate(message):
+                return message.author.id == member
+
+        messages = await channel.purge(limit=limit, check=predicate, reason='Member purge initiated by {0} ({0.id})'
+                                       .format(ctx.author))
+        messages = len(messages)
+
+        plural = '' if messages == 1 else 's'
+
+        await ctx.send('Purged {} message{}'.format(messages, plural), delete_after=10)
+
+    @clean_cmd.command()
+    @commands.guild_only()
+    @checks.mod_or_permissions(manage_messages=True)
+    async def channel(self, ctx, limit: int=100, channel: discord.TextChannel=None):
+        """Cleans up the specified channel.
+
+        * limit: How many messages to clean up
+        * channel: The channel to delete the messages from (defaults to the current channel)
+        """
+
+        if channel is None:
+            channel = ctx.channel
+
+        messages = await channel.purge(limit=limit, reason='Channel purge initiated by {0} ({0.id})'
+                                       .format(ctx.author))
+        messages = len(messages)
+
+        plural = '' if messages == 1 else 's'
+
+        await ctx.send('Purged {} message{}'.format(messages, plural), delete_after=10)
 
 
 def setup(liara):
