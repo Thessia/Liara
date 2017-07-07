@@ -1,3 +1,4 @@
+import copy
 import json
 import threading
 import time
@@ -51,9 +52,9 @@ class RedisDict(dict):
             for item in list(self):
                 old = self._modified.get(item)
                 try:
-                    new = dill.loads(dill.dumps(super().get(item)))
-                except dill.PicklingError:
-                    new = old
+                    new = copy.deepcopy(super().get(item))
+                except copy.Error:
+                    new = super().get(item)
 
                 if new != old:
                     try:
