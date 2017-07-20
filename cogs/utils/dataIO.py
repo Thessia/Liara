@@ -60,7 +60,7 @@ class RedisDict(dict):
                     try:
                         self._set(item)
                         self._modified[item] = new
-                    except dill.PickleError:
+                    except dill.PicklingError:
                         self._modified.pop(item, None)
             time.sleep(0.1)
 
