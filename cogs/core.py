@@ -384,7 +384,6 @@ class Core:
             self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
             self.settings.commit('ignores')
 
-
     @set_cmd.group(name='ignore', invoke_without_command=True)
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
