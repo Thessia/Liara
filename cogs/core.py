@@ -234,9 +234,17 @@ class Core:
     async def on_command_error(self, context, exception):
         if isinstance(exception, commands_errors.MissingRequiredArgument):
             await self.liara.send_command_help(context)
+        elif isinstance(exception, discord.Forbidden):
+            try:
+                await context.send('I don\'t have permission to perform the action you requested.')
+            except discord.Forbidden:
+                pass
         elif isinstance(exception, commands_errors.BadArgument):
-            await context.send('Bad argument.')
-            await self.liara.send_command_help(context)
+            try:
+                await context.send('Bad argument.')
+                await self.liara.send_command_help(context)
+            except discord.Forbidden:
+                pass
         elif isinstance(exception, commands_errors.CommandInvokeError):
             exception = exception.original
             error = '`{}` in command `{}`: ```py\n{}\n```'.format(type(exception).__name__,
