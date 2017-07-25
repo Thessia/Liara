@@ -24,11 +24,12 @@ class RedisDict(dict):
     def _initialize(self):
         self._pull()
         self._ready.set()
-        threading.Thread(target=self._loop, name='dataIO loop thread for {}'.format(self.key), daemon=True).start()
 
     def _set(self, key):
         _key = dill.dumps(key)
         value = dill.dumps(super().__getitem__(key))
+        if self.redis.hget(self.key, _key) == value:
+            return
         self.redis.hset(self.key, _key, value)
         self.redis.publish(self.id, json.dumps({
             'origin': self.uuid,
@@ -45,28 +46,13 @@ class RedisDict(dict):
         super().clear()
         super().update(redis_copy)
 
-    def _loop(self):
-        while not self.die:
-            for item in list(self):
-                old = self._modified.get(item)
-                try:
-                    new = copy.deepcopy(super().get(item))
-                except copy.Error:
-                    new = super().get(item)
-
-                if new != old:
-                    try:
-                        self._set(item)
-                        self._modified[item] = new
-                    except dill.PicklingError:
-                        self._modified.pop(item, None)
-            time.sleep(0.1)
-
     def _pubsub_listener(self):
         self._ready.wait()
         pubsub = self.redis.pubsub()
         pubsub.subscribe([self.id])
         for message in pubsub.listen():
+            if self.die:
+                break
             if message['type'] != 'message':
                 continue
             message = json.loads(message['data'].decode())
@@ -80,37 +66,65 @@ class RedisDict(dict):
             if message['action'] == 'clear':
                 super().clear()
 
-    def __del__(self):
-        self.die = True
+    def _check_closed(self):
+        if self.die:
+            raise RuntimeError('Unable to access closed RedisDict')
+
+    def _ready_check(self):
+        self._ready.wait()
+        self._check_closed()
 
     def __getitem__(self, key):
-        self._ready.wait()
+        self._ready_check()
         return super().__getitem__(key)
 
     def __contains__(self, item):
-        self._ready.wait()
+        self._ready_check()
         return super().__contains__(item)
 
-    def __setitem__(self, key, value):
-        out = super().__setitem__(key, value)
-        threading.Thread(target=lambda: self._set(key), name='dataIO setter thread for {}'.format(self.key),
-                         daemon=True).start()
-        return out
-
     def __delitem__(self, key):
-        self._ready.wait()
+        self._ready_check()
         self.redis.hdel(self.key, key)
         return super().__delitem__(key)
 
     def get(self, *args):
-        self._ready.wait()
+        self._ready_check()
         return super().get(*args)
 
+    def keys(self):
+        self._ready_check()
+        return super().keys()
+
+    def values(self):
+        self._ready_check()
+        return super().values()
+
+    def items(self):
+        self._ready_check()
+        return super().items()
+
     def clear(self):
-        self._ready.wait()
+        self._ready_check()
         self.redis.delete(self.key)
         self.redis.publish(self.id, json.dumps({
             'origin': self.uuid,
             'action': 'clear'
         }))
         return super().clear()
+
+    def commit(self, *keys: str):
+        """
+        Commits keys.
+        :param keys: The keys to commit, if blank selects all
+        """
+        self._ready_check()
+        if not keys:
+            keys = super().keys()
+        for key in keys:
+            self._set(key)
+
+    def close(self):
+        """
+        Closes the RedisDict.
+        """
+        self.die = True

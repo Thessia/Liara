@@ -4,17 +4,21 @@ from raven import Client as SentryClient
 from raven.exceptions import InvalidDsn
 
 from cogs.utils import checks
-from cogs.utils import dataIO
+from cogs.utils.storage import RedisDict
 
 
 class Sentry:
     """A simple cog for bug reports."""
     def __init__(self, liara):
         self.liara = liara
-        self.settings = dataIO.load('sentry')
+        self.settings = RedisDict('sentry', liara.redis)
         if 'dsn' not in self.settings:
             self.settings['dsn'] = None
+            self.settings.commit('dsn')
         self.client = None
+
+    def __unload(self):
+        self.settings.close()
 
     async def on_command_error(self, exception, context):
         if self.client is None:
@@ -33,6 +37,7 @@ class Sentry:
             self.client.set_dsn(self.settings['dsn'])
         except InvalidDsn:
             self.settings['dsn'] = None
+            self.settings.commit('dsn')
             self.client.set_dsn(None)
 
         _exception = exception.original
@@ -58,6 +63,7 @@ class Sentry:
             await ctx.send('That DSN is invalid.')
             return
         self.settings['dsn'] = dsn
+        self.settings.commit('dsn')
         if dsn is None:
             await ctx.send('DSN cleared.')
         else:

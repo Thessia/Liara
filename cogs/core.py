@@ -17,7 +17,6 @@ from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
 
 from cogs.utils import checks
-from cogs.utils import dataIO
 
 
 def load_cog(liara, cog_name):  # this function is used to boss shards around (or rather, the main shard)
@@ -34,7 +33,7 @@ class CoreMode(Enum):
 class Core:
     def __init__(self, liara):
         self.liara = liara
-        self.settings = dataIO.load('settings')
+        self.settings = liara.settings
         self.ignore_db = False
         self.logger = self.liara.logger
         self.liara.loop.create_task(self.post())
@@ -74,15 +73,19 @@ class Core:
             self.settings['roles'] = {}
         if 'ignores' not in self.settings:
             self.settings['ignores'] = {}
+        if 'owners' not in self.settings:
+            self.settings['owners'] = []
         if self.liara.instance_id not in self.settings:
             self.settings[self.liara.instance_id] = {'mode': CoreMode.boot}
         if not self.liara.ready:
             if self.settings[self.liara.instance_id]['mode'] == CoreMode.up:
                 self.settings[self.liara.instance_id]['mode'] = CoreMode.boot
+        self.settings.commit('prefixes', 'cogs', 'roles', 'owners', 'ignores', self.liara.instance_id)  # save stuff
         await self.liara.wait_until_ready()
         self.liara.ready = True
         if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
             self.settings[self.liara.instance_id]['mode'] = CoreMode.up
+        self.settings.commit(self.liara.instance_id)  # save the mode
         self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
 
     async def maintenance_loop(self):
@@ -96,6 +99,7 @@ class Core:
                             self.load_cog(cog)
                         except:
                             self.settings['cogs'].remove(cog)  # something went wrong here
+                            self.settings.commit('cogs')
                             self.logger.warning('{} could not be loaded. This message will not be shown again.'
                                                 .format(cog))
                 # Unloading cogs
@@ -104,12 +108,11 @@ class Core:
                         self.liara.unload_extension(cog)
                 # Prefix changing
                 self.liara.command_prefix = self.settings['prefixes']
-                # Setting owner
-                if 'owners' not in self.settings:
-                    self.settings['owners'] = []
+                # Owner checks
                 try:
                     if str(self.liara.owner.id) not in self.settings['owners']:
                         self.settings['owners'].append(str(self.liara.owner.id))
+                        self.settings.commit('owners')
                 except AttributeError:
                     pass
                 self.liara.owners = self.settings['owners']
@@ -188,6 +191,7 @@ class Core:
         self.liara.extensions[name] = module
         if name not in self.settings['cogs']:
             self.settings['cogs'].append(name)
+            self.settings.commit('cogs')
         sys.modules[name] = module
 
         self.logger.debug('Cog {} loaded sucessfully'.format(name))
@@ -275,6 +279,7 @@ class Core:
 
         self.liara.command_prefix = prefixes
         self.settings['prefixes'] = prefixes
+        self.settings.commit('prefixes')
         await ctx.send('Prefix(es) set.')
 
     @set_cmd.command()
@@ -315,6 +320,7 @@ class Core:
         - owners: A list of owners to use
         """
         self.settings['owners'] = [str(x.id) for x in list(owners)]
+        self.settings.commit('owners')
         if len(list(owners)) == 1:
             await ctx.send('Owner set.')
         else:
@@ -333,12 +339,15 @@ class Core:
         server = str(ctx.message.guild.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
+            self.settings.commit('roles')
         if role is not None:
             self.settings['roles'][server]['admin_role'] = role
+            self.settings.commit('roles')
             await ctx.send('Admin role set to `{}` successfully.'.format(role))
         else:
             if 'admin_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('admin_role')
+                self.settings.commit('roles')
             await ctx.send('Admin role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set admin` for help.'
                            .format(ctx.prefix))
@@ -356,12 +365,15 @@ class Core:
         server = str(ctx.message.guild.id)
         if server not in self.settings['roles']:
             self.settings['roles'][server] = {}
+            self.settings.commit('roles')
         if role is not None:
             self.settings['roles'][server]['mod_role'] = role
+            self.settings.commit('roles')
             await ctx.send('Moderator role set to `{}` successfully.'.format(role))
         else:
             if 'mod_role' in self.settings['roles'][server]:
                 self.settings['roles'][server].pop('mod_role')
+                self.settings.commit('roles')
             await ctx.send('Moderator role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set moderator` for help.'
                            .format(ctx.prefix))
@@ -370,6 +382,8 @@ class Core:
         server = str(ctx.message.guild.id)
         if server not in self.settings['ignores']:
             self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
+            self.settings.commit('ignores')
+
 
     @set_cmd.group(name='ignore', invoke_without_command=True)
     @checks.admin_or_permissions()
@@ -392,10 +406,12 @@ class Core:
         if state:
             if channel not in self.settings['ignores'][server]['ignored_channels']:
                 self.settings['ignores'][server]['ignored_channels'].append(channel)
+                self.settings.commit('ignores')
             await ctx.send('Channel ignored.')
         else:
             if channel in self.settings['ignores'][server]['ignored_channels']:
                 self.settings['ignores'][server]['ignored_channels'].remove(channel)
+                self.settings.commit('ignores')
             await ctx.send('Channel unignored.')
 
     @ignore_cmd.command()
@@ -410,9 +426,11 @@ class Core:
         server = str(ctx.message.guild.id)
         if state:
             self.settings['ignores'][server]['server_ignore'] = True
+            self.settings.commit('ignores')
             await ctx.send('Server ignored.')
         else:
             self.settings['ignores'][server]['server_ignore'] = False
+            self.settings.commit('ignores')
             await ctx.send('Server unignored.')
 
     async def halt_(self):
@@ -479,6 +497,7 @@ class Core:
         if cog_name in list(self.liara.extensions):
             self.liara.unload_extension(cog_name)
             self.settings['cogs'].remove(cog_name)
+            self.settings.commit('cogs')
             await ctx.send('`{}` unloaded successfully.'.format(name))
         else:
             await ctx.send('Unable to unload; that cog isn\'t loaded.')
@@ -492,6 +511,7 @@ class Core:
             msg = await ctx.send('`{}` reloading...'.format(name))
             self.liara.unload_extension(cog_name)
             self.settings['cogs'].remove(cog_name)
+            self.settings.commit('cogs')
             await asyncio.sleep(2)
             resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
             if resp is not None:

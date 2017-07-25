@@ -19,7 +19,7 @@ import redis
 from discord import utils as dutils
 from discord.ext import commands
 
-from cogs.utils import dataIO
+from cogs.utils.storage import RedisDict
 
 
 class NoResponse:
@@ -46,7 +46,7 @@ class Liara(commands.Bot):
                                                        self.args.shard_count).encode()).hexdigest()
         self.logger = logging.getLogger('liara')
         self.logger.info('Liara is booting, please wait...')
-        self.settings = dataIO.load('settings')
+        self.settings = RedisDict('settings', self.redis)
         self.owner = None  # this gets updated in on_ready
         self.invite_url = None  # this too
         self.send_cmd_help = send_cmd_help

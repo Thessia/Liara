@@ -7,14 +7,14 @@ import aiohttp
 from discord.ext import commands
 
 from cogs.utils import checks
-from cogs.utils import dataIO
+from cogs.utils.storage import RedisDict
 
 
 class Pacman:
     """Liara's package manager."""
     def __init__(self, liara):
         self.liara = liara
-        self.db = dataIO.load('pacman')
+        self.db = RedisDict('pacman', liara.redis)
         self.indexing = False
         self.log = None
         self.crawled = None
@@ -23,6 +23,7 @@ class Pacman:
 
         if self.db.get('indexes') is None:
             self.db['indexes'] = {}
+            self.db.commit('indexes')
 
     @staticmethod
     async def create_gist(content, filename='output.md'):
@@ -159,6 +160,7 @@ class Pacman:
         """
         if _hash in self.db['indexes']:
             self.db['indexes'].pop(_hash)
+            self.db.commit('indexes')
             await ctx.send('Index removed.')
         else:
             await ctx.send('That index has not been added.')
@@ -194,7 +196,9 @@ class Pacman:
         urls = [v['url'] for k, v in self.db['indexes'].items() if v['root_index'] == 'root']
         self.db['indexes_backup'] = self.db['indexes']
         self.db['indexes'] = {}
+        self.db.commit('indexes', 'indexes_backup')
         log = await self.trigger_crawl(urls)
+        self.db.commit('indexes')
         await message.edit(content='Updating indexes...\n'+log)
 
     @pacman.command('restore-indexes', hidden=True)
@@ -202,6 +206,7 @@ class Pacman:
     async def restore_indexes(self, ctx):
         """Restores indexes to the state before the last index update."""
         self.db['indexes'] = self.db['indexes_backup']
+        self.db.commit('indexes')
         await ctx.send('Indexes restored to the state before the last update.')
 
     @pacman.command('list-cogs', aliases=['lc'])

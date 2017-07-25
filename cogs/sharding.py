@@ -28,6 +28,7 @@ def gather_info(liara):
 
 def set_mode(liara, mode):
     liara.settings[liara.instance_id]['mode'] = mode
+    liara.settings.commit(liara.instance_id)
 
 
 def _halt(liara, ignore=None):
