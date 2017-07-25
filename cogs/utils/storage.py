@@ -5,6 +5,10 @@ import time
 import dill
 
 
+class _Nonexistant:
+    pass
+
+
 class RedisDict(dict):
     def __init__(self, key, redis, pubsub_namespace='liara'):
         super().__init__()
@@ -26,14 +30,25 @@ class RedisDict(dict):
 
     def _set(self, key):
         _key = dill.dumps(key)
-        value = dill.dumps(super().__getitem__(key))
+        try:
+            value = dill.dumps(super().__getitem__(key))
+        except KeyError:
+            value = _Nonexistant
+        if value == _Nonexistant:
+            self.redis.hdel(self.key, _key)
+            self.redis.publish(self.id, dill.dumps({
+                'origin': self.uuid,
+                'action': 'pop',
+                'key': key
+            }))
+            return
         if self.redis.hget(self.key, _key) == value:
             return
         self.redis.hset(self.key, _key, value)
-        self.redis.publish(self.id, json.dumps({
+        self.redis.publish(self.id, dill.dumps({
             'origin': self.uuid,
             'action': 'get',
-            'key': repr(_key)
+            'key': key
         }))
 
     def _get(self, key):
@@ -54,12 +69,13 @@ class RedisDict(dict):
                 break
             if message['type'] != 'message':
                 continue
-            message = json.loads(message['data'].decode())
+            message = dill.loads(message['data'])
             if message['origin'] == self.uuid:
                 continue
             if message['action'] == 'get':
-                key = dill.loads(eval(message['key']))
-                super().__setitem__(key, self._get(key))
+                super().__setitem__(key, self._get(message['key']))
+            if message['action'] == 'pop':
+                super().pop(message['key'], None)
             if message['action'] == 'pull':
                 self._pull()
             if message['action'] == 'clear':
