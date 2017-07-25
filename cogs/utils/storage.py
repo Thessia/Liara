@@ -73,7 +73,7 @@ class RedisDict(dict):
             if message['origin'] == self.uuid:
                 continue
             if message['action'] == 'get':
-                super().__setitem__(key, self._get(message['key']))
+                super().__setitem__(message['key'], self._get(message['key']))
             if message['action'] == 'pop':
                 super().pop(message['key'], None)
             if message['action'] == 'pull':
