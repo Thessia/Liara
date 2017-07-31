@@ -174,8 +174,12 @@ class Core:
                 else:
                     raise discord.ClientException('Extension is not a file')
                 del module
-        except ImportError:
-            assert self.liara.redis.exists(redis_name), 'Module not found on disk or in Redis'
+        except ImportError as e:
+            self.logger.error('Failed loading cog {} from disk, falling back to Redis. The following traceback '
+                              'describes why the load from disk failed:'
+                              '\n{}'.format(name, self.get_traceback(e)))
+            if not self.liara.redis.exists(redis_name):
+                raise e
 
         file_contents = self.liara.redis.get(redis_name)
         if file_contents is None:
