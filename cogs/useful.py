@@ -13,6 +13,16 @@ class Useful:
         self.liara = liara
         self.event_counter = Counter()
 
+        for obj in dir(self):  # docstring formatting
+            if obj.startswith('_'):
+                continue
+            obj = getattr(self, obj)
+            if not isinstance(obj, commands.Command):
+                continue
+            if not obj.help:
+                continue
+            obj.help = obj.help.format(self.liara.name)
+
     @staticmethod
     async def timeit(coro):
         """Times a coroutine."""
@@ -27,7 +37,7 @@ class Useful:
 
     @commands.command()
     async def ping(self, ctx):
-        """Checks to see if Liara is responding.
+        """Checks to see if {} is responding.
         Also collects a bunch of other nerd stats.
         """
         before = time.monotonic()
@@ -70,7 +80,7 @@ class Useful:
     @commands.command()
     @checks.is_bot_account()
     async def invite(self, ctx):
-        """Gets Liara's invite URL."""
+        """Gets {}'s invite URL."""
         await ctx.send('My invite URL is\n<{0}&permissions=8>.\n\n'
                        'You\'ll need the **Manage Server** permission to add me to a server.'
                        .format(self.liara.invite_url))
@@ -86,7 +96,7 @@ class Useful:
 
     @commands.command()
     async def uptime(self, ctx):
-        """Gets Liara's uptime.
+        """Gets {}'s uptime.
         Modified R. Danny method (thanks Danny!)"""
         now = time.time()
         difference = int(now) - int(self.liara.boot_time)  # otherwise we're dealing with floats

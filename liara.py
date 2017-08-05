@@ -36,6 +36,7 @@ class NoResponse:
 class Liara(commands.Bot):
     def __init__(self, *args, **kwargs):
         self.redis = kwargs.pop('redis', None)
+        self.name = kwargs.pop('name', 'Liara')
         if self.redis is None:
             raise AssertionError('No redis instance specified')
         self.test = kwargs.pop('test', False)
@@ -212,6 +213,7 @@ if __name__ == '__main__':
     help_description = os.environ.get('LIARA_HELP', 'Liara, an open-source Discord bot written by Pandentia and '
                                                     'contributors\n'
                                                     'https://github.com/Thessia/Liara')
+    runtime_name = os.environ.get('LIARA_NAME', 'Liara')
     token = os.environ.get('LIARA_TOKEN', None)
     redis_host = os.environ.get('LIARA_REDIS_HOST', 'localhost')
     redis_pass = os.environ.get('LIARA_REDIS_PASSWORD', None)
@@ -248,6 +250,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--description', type=str, help='modify the bot description shown in the help command',
                         default=help_description)
+    parser.add_argument('--name', type=str, help='allows for white labeling Liara', default=runtime_name)
     parser.add_argument('--selfbot', help='enables selfbot mode', action='store_true')
     parser.add_argument('--userbot', help='enables userbot mode, with the specified owner ID', type=int, default=None)
     parser.add_argument('--debug', help=argparse.SUPPRESS, action='store_true')
@@ -368,7 +371,7 @@ if __name__ == '__main__':
     # noinspection PyUnboundLocalVariable
     liara = Liara('!', shard_id=cargs.shard_id, shard_count=cargs.shard_count, description=cargs.description,
                   self_bot=cargs.selfbot, pm_help=None, max_messages=message_cache,
-                  redis=redis_conn, cargs=cargs, test=cargs.test)  # liara-specific args
+                  redis=redis_conn, cargs=cargs, test=cargs.test, name=cargs.name)  # liara-specific args
 
     async def run_bot():
         await liara.login(cargs.token, bot=not (cargs.selfbot or userbot))

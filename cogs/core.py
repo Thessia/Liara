@@ -36,26 +36,37 @@ class Core:
         self.settings = liara.settings
         self.ignore_db = False
         self.logger = self.liara.logger
-        self.liara.loop.create_task(self.post())
-        self.global_preconditions = [self.ignore_preconditions]  # preconditions to message processing
-        self.global_preconditions_overrides = [self.ignore_overrides]  # overrides to the preconditions
+        self.liara.loop.create_task(self._post())
+        self.global_preconditions = [self._ignore_preconditions]  # preconditions to message processing
+        self.global_preconditions_overrides = [self._ignore_overrides]  # overrides to the preconditions
         self._eval = {}
         self.loop = None  # make pycharm stop complaining
+
+        for obj in dir(self):  # docstring formatting
+            if obj.startswith('_'):
+                continue
+            obj = getattr(self, obj)
+            if not isinstance(obj, commands.Command):
+                continue
+            if not obj.help:
+                continue
+            obj.help = obj.help.format(self.liara.name)
 
     def __unload(self):
         self.settings.die = True
         self.loop.cancel()
 
-    async def post(self):
+    async def _post(self):
         """Power-on self test. Beep boop."""
         self.liara.owners = []
         if 'prefixes' in self.settings:
             self.liara.command_prefix = self.settings['prefixes']
-            self.logger.info('Liara\'s prefixes are: ' + ', '.join(self.liara.command_prefix))
+            self.logger.info('{}\'s prefixes are: '.format(self.liara.name) + ', '.join(self.liara.command_prefix))
         else:
             prefix = random.randint(1, 2**8)
             self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
-            self.logger.info('Liara hasn\'t been started before, so her prefix has been set to "{}".'.format(prefix))
+            self.logger.info('{} hasn\'t been started before, so her prefix has been set to "{}".'
+                             .format(self.liara.name, prefix))
 
         if 'cogs' in self.settings:
             for cog in self.settings['cogs']:
@@ -86,9 +97,9 @@ class Core:
         if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
             self.settings[self.liara.instance_id]['mode'] = CoreMode.up
         self.settings.commit(self.liara.instance_id)  # save the mode
-        self.loop = self.liara.loop.create_task(self.maintenance_loop())  # starts the loop
+        self.loop = self.liara.loop.create_task(self._maintenance_loop())  # starts the loop
 
-    async def maintenance_loop(self):
+    async def _maintenance_loop(self):
         while True:
             if not self.ignore_db:  # if you wanna use something else for database management, just set this to false
                 # Loading cogs
@@ -118,7 +129,7 @@ class Core:
                 self.liara.owners = self.settings['owners']
             await asyncio.sleep(1)
 
-    async def ignore_overrides(self, message):
+    async def _ignore_overrides(self, message):
         if isinstance(message.author, discord.Member):
             if message.guild.owner == message.author:
                 return True
@@ -130,7 +141,7 @@ class Core:
             except KeyError or AttributeError:
                 pass
 
-    async def ignore_preconditions(self, message):
+    async def _ignore_preconditions(self, message):
         if isinstance(message.author, discord.Member):
             guild = str(message.guild.id)
             if guild in self.settings['ignores']:
@@ -184,6 +195,8 @@ class Core:
         file_contents = self.liara.redis.get(redis_name)
         if file_contents is None:
             raise IOError('Redis appears to be improperly configured')
+        # shut the fuck up, IDEA
+        # noinspection PyUnresolvedReferences
         module = types.ModuleType(name)
         exec(file_contents, module.__dict__)
 
@@ -265,13 +278,13 @@ class Core:
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
     async def set_cmd(self, ctx):
-        """Sets Liara's settings."""
+        """Sets {}'s settings."""
         await self.liara.send_command_help(ctx)
 
     @set_cmd.command()
     @checks.is_owner()
     async def prefix(self, ctx, *prefixes: str):
-        """Sets Liara's prefixes.
+        """Sets {}'s prefixes.
 
         - prefixes: A list of prefixes to use
         """
@@ -289,7 +302,7 @@ class Core:
     @set_cmd.command()
     @checks.is_owner()
     async def name(self, ctx, username: str):
-        """Changes Liara's username.
+        """Changes {}'s username.
 
         - username: The username to use
         """
@@ -299,9 +312,9 @@ class Core:
     @set_cmd.command()
     @checks.is_owner()
     async def avatar(self, ctx, url: str):
-        """Changes Liara's avatar.
+        """Changes {0}'s avatar.
 
-        - url: The URL to set Liara's avatar to
+        - url: The URL to set {0}'s avatar to
         """
         session = aiohttp.ClientSession()
         response = await session.get(url)
@@ -319,7 +332,7 @@ class Core:
     @checks.is_owner()
     @checks.is_not_selfbot()
     async def owner(self, ctx, *owners: discord.Member):
-        """Sets Liara's owners.
+        """Sets {}'s owners.
 
         - owners: A list of owners to use
         """
@@ -335,7 +348,7 @@ class Core:
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
     async def admin(self, ctx, *, role: str=None):
-        """Sets Liara's admin role.
+        """Sets {}'s admin role.
         Roles are non-case sensitive.
 
         - role: The name of the role to use as the admin role
@@ -361,7 +374,7 @@ class Core:
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
     async def moderator(self, ctx, *, role: str=None):
-        """Sets Liara's moderator role.
+        """Sets {}'s moderator role.
         Roles are non-case sensitive.
 
         - role: The name of the role to use as the moderator role
@@ -446,7 +459,7 @@ class Core:
     @commands.command(aliases=['shutdown'])
     @checks.is_owner()
     async def halt(self, ctx, skip_confirm=False):
-        """Shuts Liara down.
+        """Shuts {} down.
 
         - skip_confirm: Whether or not to skip halt confirmation.
         """
