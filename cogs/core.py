@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import importlib
 import inspect
 import json
@@ -8,26 +7,24 @@ import sys
 import textwrap
 import time
 import traceback
-import types
-from enum import Enum
 
 import aiohttp
+import datetime
 import discord
+import types
 from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
 
 from cogs.utils import checks
+from cogs.utils.runtime import CoreMode
 
 
 def load_cog(liara, cog_name):  # this function is used to boss shards around (or rather, the main shard)
     return liara.get_cog('Core').load_cog(cog_name)
 
 
-class CoreMode(Enum):
-    up = 'up'  # respond to everyone (within checks)
-    maintenance = 'maintenance'  # respond to owners
-    down = 'down'  # respond to no one
-    boot = 'boot'  # respond to no one until the next boot
+def reload_core(liara):
+    liara.loop.create_task(liara.get_cog('Core').reload_self())
 
 
 class Core:
@@ -53,7 +50,6 @@ class Core:
             obj.help = obj.help.format(self.liara.name)
 
     def __unload(self):
-        self.settings.die = True
         self.loop.cancel()
 
     async def _post(self):
@@ -67,7 +63,6 @@ class Core:
             self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
             self.logger.info('{} hasn\'t been started before, so her prefix has been set to "{}".'
                              .format(self.liara.name, prefix))
-
         if 'cogs' in self.settings:
             for cog in self.settings['cogs']:
                 if cog not in list(self.liara.extensions):
@@ -79,7 +74,10 @@ class Core:
                         self.logger.warning('{} could not be loaded. This message will not be shown again.'
                                             .format(cog))
         else:
-            self.settings['cogs'] = ['cogs.core']
+            self.settings['cogs'] = []
+        loader = 'cogs.{}'.format(self.settings.get('loader', 'core'))  # get the loader
+        if loader not in self.settings['cogs']:
+            self.settings['cogs'] = [loader]  # reset loaded cogs if loader changes
         if 'roles' not in self.settings:
             self.settings['roles'] = {}
         if 'ignores' not in self.settings:
@@ -161,6 +159,10 @@ class Core:
     def get_traceback(exception, limit=None, chain=True):
         return ''.join(traceback.format_exception(type(exception), exception, exception.__traceback__, limit=limit,
                                                   chain=chain))
+
+    async def reload_self(self):
+        self.liara.unload_extension('cogs.core')
+        self.load_cog('cogs.core')
 
     # make IDEA stop acting like a baby
     # noinspection PyShadowingBuiltins
@@ -522,6 +524,10 @@ class Core:
     @checks.is_owner()
     async def reload(self, ctx, name: str):
         """Reloads a cog."""
+        if name == 'core':
+            await self.liara.run_on_shard(None if self.liara.shard_id is None else 'all', reload_core)
+            await ctx.send('Command dispatched, reloading core on all shards now.')
+            return
         cog_name = 'cogs.{}'.format(name)
         if cog_name in list(self.liara.extensions):
             msg = await ctx.send('`{}` reloading...'.format(name))

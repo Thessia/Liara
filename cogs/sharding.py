@@ -1,12 +1,10 @@
-import asyncio
-import datetime
 import platform
-import random
 
+import datetime
 from discord.ext import commands
 
-from cogs.core import CoreMode
 from cogs.utils import checks
+from cogs.utils.runtime import CoreMode
 
 try:
     import tabulate
@@ -50,11 +48,6 @@ class Sharding:
     async def shards(self, ctx):
         """A bunch of sharding-related commands."""
         await self.liara.send_command_help(ctx)
-
-    async def edit_task(self, message):
-        while True:
-            await asyncio.sleep(random.randint(2, 4))
-            await message.edit(content=await self.get_line())
 
     @shards.command()
     async def list(self, ctx, mode='generic'):
