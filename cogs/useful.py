@@ -45,7 +45,7 @@ class Useful:
         message_delay, message = await self.timeit(ctx.send('..'))
         message_delay = self.format_delta(message_delay)
         edit_delay = self.format_delta((await self.timeit(message.edit(content='...')))[0])
-        gateway_delay = self.format_delta((await self.timeit(await self.liara.ws.ping()))[0])
+        gateway_delay = self.format_delta((datetime.utcnow() - ctx.message.created_at).total_seconds())
         after = time.monotonic()
         total_delay = self.format_delta(after - before)
         await message.edit(content='Pong.\n\n**Stats for nerds**:\nTyping delay: `{}ms`\nMessage send delay: `{}ms`\n'
