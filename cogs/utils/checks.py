@@ -13,6 +13,17 @@ def role_check(ctx, _role):
     return role in roles
 
 
+def permission_check(ctx, **permission_pairs):
+    if not isinstance(ctx.channel, discord.TextChannel):
+        return False
+    channel_permissions = dict(ctx.author.permissions_in(ctx.channel))
+    for permission in permission_pairs:
+        state = channel_permissions.get(permission, False)
+        if state == permission_pairs[permission]:
+            return True
+    return False
+
+
 def is_owner():
     return commands.check(owner_check)
 
@@ -95,12 +106,8 @@ def admin_or_permissions(**permissions):
             return True
         if role_check(ctx, 'admin'):
             return True
-        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
-        for permission in permissions:
-            if permissions[permission]:
-                allowed = user_permissions.get(permission, False)
-                if allowed:
-                    return True
+        if permission_check(ctx, **permissions):
+            return True
         return False
     return commands.check(predicate)
 
@@ -113,11 +120,8 @@ def serverowner_or_permissions(**permissions):
             return False
         if ctx.author == ctx.guild.owner:
             return True
-        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
-        for permission in permissions:
-            allowed = user_permissions.get(permission, False)
-            if allowed:
-                return True
+        if permission_check(ctx, **permissions):
+            return True
         return False
     return commands.check(predicate)
 
