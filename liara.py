@@ -5,6 +5,7 @@ import asyncio
 import bz2
 import datetime
 import logging
+import os
 import platform
 import sys
 import threading
@@ -14,7 +15,6 @@ from concurrent.futures import TimeoutError, ThreadPoolExecutor
 from hashlib import sha256
 
 import dill
-import os
 import redis
 from discord import utils as dutils
 from discord.ext import commands
