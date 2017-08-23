@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 import uuid
-from concurrent.futures import TimeoutError
+from concurrent.futures import TimeoutError, ThreadPoolExecutor
 from hashlib import sha256
 
 import dill
@@ -33,164 +33,171 @@ class NoResponse:
             return False
 
 
-class Liara(commands.Bot):
-    def __init__(self, *args, **kwargs):
-        self.redis = kwargs.pop('redis', None)
-        self.name = kwargs.pop('name', 'Liara')
-        if self.redis is None:
-            raise AssertionError('No redis instance specified')
-        self.test = kwargs.pop('test', False)
-        self.args = kwargs.pop('cargs', None)
-        self.boot_time = time.time()  # for uptime tracking, we'll use this later
-        # used for keeping track of *this* instance over reboots
-        self.instance_id = sha256('{}_{}_{}_{}'.format(platform.node(), os.getcwd(), self.args.shard_id,
-                                                       self.args.shard_count).encode()).hexdigest()
-        self.logger = logging.getLogger('liara')
-        self.logger.info('Liara is booting, please wait...')
-        self.settings = RedisDict('settings', self.redis)
-        self.owner = None  # this gets updated in on_ready
-        self.invite_url = None  # this too
-        self.send_cmd_help = send_cmd_help
-        self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
-        self.self_bot = kwargs.get('self_bot', False)
-        db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
-        self._pubsub_futures = {}  # futures temporarily stored here
-        self._pubsub_broadcast_cache = {}
-        threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
-        threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
-        super().__init__(*args, **kwargs)
-        try:
-            loader = self.settings['loader']
-            self.load_extension('cogs.' + loader)
-            self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
-        except KeyError:
-            self.load_extension('cogs.core')
-        self.ready = False
+def create_bot(auto_shard: bool):
+    cls = commands.AutoShardedBot if auto_shard else commands.Bot
 
-    def _process_pubsub_event(self, event):
-        _id = self.pubsub_id
-        if event['type'] != 'message':
-            return
-        try:
-            _data = dill.loads(event['data'])
-            target = _data.get('target')
-            broadcast = target == 'all'
-            if not isinstance(_data, dict):
+    class Liara(cls):
+        def __init__(self, *args, **kwargs):
+            self.redis = kwargs.pop('redis', None)
+            self.name = kwargs.pop('name', 'Liara')
+            if self.redis is None:
+                raise AssertionError('No redis instance specified')
+            self.test = kwargs.pop('test', False)
+            self.args = kwargs.pop('cargs', None)
+            self.boot_time = time.time()  # for uptime tracking, we'll use this later
+            # used for keeping track of *this* instance over reboots
+            self.instance_id = sha256('{}_{}_{}_{}'.format(platform.node(), os.getcwd(), self.args.shard_id,
+                                                           self.args.shard_count).encode()).hexdigest()
+            self.logger = logging.getLogger('liara')
+            self.logger.info('Liara is booting, please wait...')
+            self.settings = RedisDict('settings', self.redis)
+            self.owner = None  # this gets updated in on_ready
+            self.invite_url = None  # this too
+            self.send_cmd_help = send_cmd_help
+            self.send_command_help = send_cmd_help  # seems more like a method name discord.py would choose
+            self.self_bot = kwargs.get('self_bot', False)
+            db = str(self.redis.connection_pool.connection_kwargs['db'])
+            self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
+            self._pubsub_futures = {}  # futures temporarily stored here
+            self._pubsub_broadcast_cache = {}
+            self._pubsub_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pubsub event')
+            threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
+            threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
+            super().__init__(*args, **kwargs)
+            try:
+                loader = self.settings['loader']
+                self.load_extension('cogs.' + loader)
+                self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
+            except KeyError:
+                self.load_extension('cogs.core')
+            self.ready = False
+
+        def _process_pubsub_event(self, event):
+            _id = self.pubsub_id
+            if event['type'] != 'message':
                 return
-            # get type, if this is a broken dict just ignore it
-            if _data.get('type') is None:
-                return
-            # ping response
-            if target == self.shard_id or broadcast:
-                if _data['type'] == 'ping':
-                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
-                                                        'response': 'Pong.'}))
-                if _data['type'] == 'coderequest':
-                    func = _data.get('function')  # get the function, discard if None
-                    if func is None:
-                        return
-                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
-                    if broadcast:
-                        resp['from'] = self.shard_id
-                    args = _data.get('args', ())
-                    kwargs = _data.get('kwargs', {})
-                    try:
-                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
-                    except Exception as e:
-                        resp['response'] = e
-                    try:
-                        self.redis.publish(_id, dill.dumps(resp))
-                    except dill.PicklingError:  # if the response fails to dill, return None instead
-                        resp = {'type': 'response', 'id': _data.get('id')}
+            try:
+                _data = dill.loads(event['data'])
+                target = _data.get('target')
+                broadcast = target == 'all'
+                if not isinstance(_data, dict):
+                    return
+                # get type, if this is a broken dict just ignore it
+                if _data.get('type') is None:
+                    return
+                # ping response
+                if target == self.shard_id or broadcast:
+                    if _data['type'] == 'ping':
+                        self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
+                                                            'response': 'Pong.'}))
+                    if _data['type'] == 'coderequest':
+                        func = _data.get('function')  # get the function, discard if None
+                        if func is None:
+                            return
+                        resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
                         if broadcast:
                             resp['from'] = self.shard_id
-                        self.redis.publish(_id, dill.dumps(resp))
-            if _data['type'] == 'response':
-                __id = _data.get('id')
-                _from = _data.get('from')
-                if __id is None:
-                    return
-                if __id not in self._pubsub_futures:
-                    return
-                if __id not in self._pubsub_broadcast_cache and _from is not None:
-                    return
-                if _from is None:
-                    self._pubsub_futures[__id].set_result(_data.get('response'))
-                    del self._pubsub_futures[__id]
-                else:
-                    self._pubsub_broadcast_cache[__id][_from] = _data.get('response')
+                        args = _data.get('args', ())
+                        kwargs = _data.get('kwargs', {})
+                        try:
+                            # noinspection PyCallingNonCallable
+                            resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
+                        except Exception as e:
+                            resp['response'] = e
+                        try:
+                            self.redis.publish(_id, dill.dumps(resp))
+                        except dill.PicklingError:  # if the response fails to dill, return None instead
+                            resp = {'type': 'response', 'id': _data.get('id')}
+                            if broadcast:
+                                resp['from'] = self.shard_id
+                            self.redis.publish(_id, dill.dumps(resp))
+                if _data['type'] == 'response':
+                    __id = _data.get('id')
+                    _from = _data.get('from')
+                    if __id is None:
+                        return
+                    if __id not in self._pubsub_futures:
+                        return
+                    if __id not in self._pubsub_broadcast_cache and _from is not None:
+                        return
+                    if _from is None:
+                        self._pubsub_futures[__id].set_result(_data.get('response'))
+                        del self._pubsub_futures[__id]
+                    else:
+                        self._pubsub_broadcast_cache[__id][_from] = _data.get('response')
 
-        except dill.UnpicklingError:
-            return
+            except dill.UnpicklingError:
+                return
 
-    def _pubsub_loop(self):
-        pubsub = self.redis.pubsub()
-        _id = self.pubsub_id
-        pubsub.subscribe(_id)
-        for event in pubsub.listen():
-            threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
+        def _pubsub_loop(self):
+            pubsub = self.redis.pubsub()
+            _id = self.pubsub_id
+            pubsub.subscribe(_id)
+            for event in pubsub.listen():
+                self._pubsub_pool.submit(self._process_pubsub_event, event)
 
-    def _pubsub_cache_loop(self):
-        while True:
-            for k, v in dict(self._pubsub_broadcast_cache).items():
-                contents = [v[x] for x in v if x != 'expires']
-                if v['expires'] < time.monotonic() or NoResponse() not in contents:
-                    del v['expires']
-                    self._pubsub_futures[k].set_result(v)
-                    del self._pubsub_futures[k]
-                    del self._pubsub_broadcast_cache[k]
-            time.sleep(0.01)  # be nice to the host
+        def _pubsub_cache_loop(self):
+            while True:
+                for k, v in dict(self._pubsub_broadcast_cache).items():
+                    contents = [v[x] for x in v if x != 'expires']
+                    if v['expires'] < time.monotonic() or NoResponse() not in contents:
+                        del v['expires']
+                        self._pubsub_futures[k].set_result(v)
+                        del self._pubsub_futures[k]
+                        del self._pubsub_broadcast_cache[k]
+                time.sleep(0.01)  # be nice to the host
 
-    def request(self, target, broadcast_timeout=1, **kwargs):
-        _id = str(uuid.uuid4())
-        self._pubsub_futures[_id] = fut = asyncio.Future()
-        request = {'id': _id, 'target': target}
-        request.update(kwargs)
-        if target == 'all':
-            cache = {k: NoResponse() for k in range(0, self.shard_count)}  # prepare the cache
-            cache['expires'] = time.monotonic() + broadcast_timeout
-            self._pubsub_broadcast_cache[_id] = cache
-        self.redis.publish(self.pubsub_id, dill.dumps(request))
-        return fut
+        def request(self, target, broadcast_timeout=1, **kwargs):
+            _id = str(uuid.uuid4())
+            self._pubsub_futures[_id] = fut = asyncio.Future()
+            request = {'id': _id, 'target': target}
+            request.update(kwargs)
+            if target == 'all':
+                cache = {k: NoResponse() for k in range(0, self.shard_count)}  # prepare the cache
+                cache['expires'] = time.monotonic() + broadcast_timeout
+                self._pubsub_broadcast_cache[_id] = cache
+            self.redis.publish(self.pubsub_id, dill.dumps(request))
+            return fut
 
-    async def run_on_shard(self, shard, func, *args, **kwargs):
-        return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
+        async def run_on_shard(self, shard, func, *args, **kwargs):
+            return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
 
-    async def ping_shard(self, shard, timeout=1):
-        try:
-            await asyncio.wait_for(self.request(shard, type='ping'), timeout=timeout)
-            return True
-        except TimeoutError:
-            return False
+        async def ping_shard(self, shard, timeout=1):
+            try:
+                await asyncio.wait_for(self.request(shard, type='ping'), timeout=timeout)
+                return True
+            except TimeoutError:
+                return False
 
-    async def on_ready(self):
-        self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
-                       .format(self.user))
-        self.logger.info('Liara is connected!')
-        self.logger.info('Logged in as {0}.'.format(self.user))
-        if self.shard_id is not None:
-            self.logger.info('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
-        if self.user.bot:
-            app_info = await self.application_info()
-            self.invite_url = dutils.oauth_url(app_info.id)
-            self.logger.info('Invite URL: {0}'.format(self.invite_url))
-            self.owner = app_info.owner
-        elif self.self_bot:
-            self.owner = self.user
-        else:
-            self.owner = self.get_user(self.args.userbot)
-        if self.test:
-            self.logger.info('Test complete, logging out...')
-            await self.logout()
-            exit(0)  # jenkins' little helper
+        async def on_ready(self):
+            self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
+                           .format(self.user))
+            self.logger.info('Liara is connected!')
+            self.logger.info('Logged in as {0}.'.format(self.user))
+            if self.shard_id is not None:
+                self.logger.info('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
+            if self.user.bot:
+                app_info = await self.application_info()
+                self.invite_url = dutils.oauth_url(app_info.id)
+                self.logger.info('Invite URL: {0}'.format(self.invite_url))
+                self.owner = app_info.owner
+            elif self.self_bot:
+                self.owner = self.user
+            else:
+                self.owner = self.get_user(self.args.userbot)
+            if self.test:
+                self.logger.info('Test complete, logging out...')
+                await self.logout()
+                exit(0)  # jenkins' little helper
 
-    async def on_message(self, message):
-        pass
+        async def on_message(self, message):
+            pass
 
-    def __repr__(self):
-        return '<Liara username={} shard_id={} shard_count={}>'.format(
-            *[repr(x) for x in [self.user.name, self.shard_id, self.shard_count]])
+        def __repr__(self):
+            return '<Liara username={} shard_id={} shard_count={}>'.format(
+                *[repr(x) for x in [self.user.name, self.shard_id, self.shard_count]])
+
+    return Liara
 
 
 async def send_cmd_help(ctx):
@@ -367,11 +374,22 @@ if __name__ == '__main__':
         logger.critical('Unable to connect to Redis, exiting...')
         exit(2)
 
+    # sharding logic
+    unsharded = True
+    if cargs.shard_id is not None:
+        unsharded = False
+    if cargs.userbot:
+        unsharded = False
+    if cargs.selfbot:
+        unsharded = False
+
+    liara_cls = create_bot(unsharded)
+
     # if we want to make an auto-reboot loop now, it would be a hell of a lot easier now
     # noinspection PyUnboundLocalVariable
-    liara = Liara('!', shard_id=cargs.shard_id, shard_count=cargs.shard_count, description=cargs.description,
-                  self_bot=cargs.selfbot, pm_help=None, max_messages=message_cache,
-                  redis=redis_conn, cargs=cargs, test=cargs.test, name=cargs.name)  # liara-specific args
+    liara = liara_cls('!', shard_id=cargs.shard_id, shard_count=cargs.shard_count, description=cargs.description,
+                      self_bot=cargs.selfbot, pm_help=None, max_messages=message_cache,
+                      redis=redis_conn, cargs=cargs, test=cargs.test, name=cargs.name)  # liara-specific args
 
     async def run_bot():
         await liara.login(cargs.token, bot=not (cargs.selfbot or userbot))
