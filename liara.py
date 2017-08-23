@@ -60,7 +60,7 @@ def create_bot(auto_shard: bool):
             self.pubsub_id = 'liara.{}.pubsub.code'.format(db)
             self._pubsub_futures = {}  # futures temporarily stored here
             self._pubsub_broadcast_cache = {}
-            self._pubsub_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pubsub event')
+            self._pubsub_pool = ThreadPoolExecutor(max_workers=1)
             threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
             threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
             super().__init__(*args, **kwargs)
