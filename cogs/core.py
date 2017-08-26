@@ -30,8 +30,12 @@ def reload_core(liara):
 class Core:
     def __init__(self, liara):
         self.liara = liara
-        self.settings = liara.settings
+
         self.ignore_db = False
+        self.verbose_errors = False  # tracebacks?
+        self.informative_errors = True  # info messages based on error
+
+        self.settings = liara.settings
         self.logger = self.liara.logger
         self.liara.loop.create_task(self._post())
         self.global_preconditions = [self._ignore_preconditions]  # preconditions to message processing
@@ -255,27 +259,44 @@ class Core:
         await self.liara.process_commands(message)
 
     async def on_command_error(self, context, exception):
-        if isinstance(exception, commands_errors.MissingRequiredArgument):
-            await self.liara.send_command_help(context)
-        elif isinstance(exception, discord.Forbidden):
-            try:
-                await context.send('I don\'t have permission to perform the action you requested.')
-            except discord.Forbidden:
-                pass
-        elif isinstance(exception, commands_errors.BadArgument):
-            try:
+        try:
+            if isinstance(exception, commands_errors.CommandInvokeError):
+                exception = exception.original
+
+                if isinstance(exception, discord.Forbidden):
+                    if self.informative_errors:
+                        return await context.send('I don\'t have permission to perform the action you requested.')
+                    else:
+                        return  # don't care, don't log
+
+                error = '`{}` in command `{}`: ```py\n{}\n```'.format(type(exception).__name__,
+                                                                      context.command.qualified_name,
+                                                                      self.get_traceback(exception))
+                self.logger.error(error)
+                if self.informative_errors:
+                    if self.verbose_errors:
+                        await context.send(error)
+                    else:
+                        await context.send('An error occured while running that command.')
+            if not self.informative_errors:  # everything beyond this point is purely informative
+                return
+            if isinstance(exception, commands_errors.CommandNotFound):
+                return  # be nice to other bots
+            if isinstance(exception, commands_errors.MissingRequiredArgument):
+                return await self.liara.send_command_help(context)
+            if isinstance(exception, commands_errors.BadArgument):
                 await context.send('Bad argument.')
                 await self.liara.send_command_help(context)
-            except discord.Forbidden:
-                pass
-        elif isinstance(exception, commands_errors.CommandInvokeError):
-            exception = exception.original
-            error = '`{}` in command `{}`: ```py\n{}\n```'.format(type(exception).__name__,
-                                                                  context.command.qualified_name,
-                                                                  self.get_traceback(exception))
-            await context.send(error)
-        elif isinstance(exception, commands_errors.CommandNotFound):
+            if isinstance(exception, commands_errors.CheckFailure):
+                await context.send('You do not have access to that command.')
+            if isinstance(exception, commands_errors.DisabledCommand):
+                await context.send('That command is disabled.')
+            if isinstance(exception, commands_errors.NoPrivateMessage):
+                await context.send('That command is not available in direct messages.')
+        except discord.HTTPException:
             pass
+
+
 
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
