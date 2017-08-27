@@ -296,8 +296,6 @@ class Core:
         except discord.HTTPException:
             pass
 
-
-
     @commands.group(name='set', invoke_without_command=True)
     @checks.admin_or_permissions()
     async def set_cmd(self, ctx):
