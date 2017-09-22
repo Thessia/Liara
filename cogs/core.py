@@ -179,7 +179,7 @@ class Core:
         redis_name = 'cogfiles.{}'.format(name)
 
         try:
-            if self.liara.shard_id is None or self.liara.shard_id == 0:
+            if self.liara.shard_id is None or self.liara.shard_id == 0 and not name.startswith('pkg'):
                 self.logger.debug('Loading cog {} from disk into Redis'.format(name))
                 module = importlib.import_module(name)
                 importlib.reload(module)
@@ -204,7 +204,8 @@ class Core:
         # shut the fuck up, IDEA
         # noinspection PyUnresolvedReferences
         module = types.ModuleType(name)
-        exec(file_contents, module.__dict__)
+        code = compile(file_contents, name, 'exec')
+        exec(code, module.__dict__)
 
         if not hasattr(module, 'setup'):
             del module
