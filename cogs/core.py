@@ -73,7 +73,7 @@ class Core:
                     # noinspection PyBroadException
                     try:
                         self.load_cog(cog)
-                    except:
+                    except Exception:
                         self.settings['cogs'].remove(cog)
                         self.logger.warning('{} could not be loaded. This message will not be shown again.'
                                             .format(cog))
@@ -110,7 +110,7 @@ class Core:
                         # noinspection PyBroadException
                         try:
                             self.load_cog(cog)
-                        except:
+                        except Exception:
                             self.settings['cogs'].remove(cog)  # something went wrong here
                             self.settings.commit('cogs')
                             self.logger.warning('{} could not be loaded. This message will not be shown again.'
@@ -239,7 +239,7 @@ class Core:
                 if out is True:
                     await self.liara.process_commands(message)
                     return
-            except:
+            except Exception:
                 self.logger.warning('Removed precondition override "{}", it was malfunctioning.'
                                     .format(override.__name__))
                 self.global_preconditions_overrides.remove(override)
@@ -252,7 +252,7 @@ class Core:
                     out = await out
                 if out is False:
                     return
-            except:
+            except Exception:
                 self.logger.warning('Removed precondition "{}", it was malfunctioning.'
                                     .format(precondition.__name__))
                 self.global_preconditions.remove(precondition)
