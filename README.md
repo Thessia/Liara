@@ -3,6 +3,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.5-blue.svg)](https://python.org)
 [![Discord](https://discordapp.com/api/guilds/247754180763189258/widget.png?style=shield)](https://discord.gg/JRJjMTy)
+[![Waffle.io - Issues in progress](https://badge.waffle.io/Thessia/Liara.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/Thessia/Liara)
 
 ### What is Liara, exactly?
 Liara is a direct competitor to [Twentysix26's Red](https://github.com/Twentysix26/Red-DiscordBot), the key difference being actual modularity. In addition to being backwards-compatible with most of Red's cogs (plugins), Liara also has some additional features that might prove useful for bot hosting, such as
