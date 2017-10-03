@@ -86,12 +86,8 @@ def mod_or_permissions(**permissions):
             return True
         if role_check(ctx, 'admin'):
             return True
-        user_permissions = dict(ctx.author.permissions_in(ctx.channel))
-        for permission in permissions:
-            if permissions[permission]:
-                allowed = user_permissions.get(permission, False)
-                if allowed:
-                    return True
+        if permission_check(ctx, **permissions):
+            return True
         return False
     return commands.check(predicate)
 
