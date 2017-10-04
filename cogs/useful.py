@@ -81,7 +81,7 @@ class Useful:
     @checks.is_bot_account()
     async def invite(self, ctx):
         """Gets {}'s invite URL."""
-        await ctx.send('My invite URL is\n<{0}&permissions=8>.\n\n'
+        await ctx.send('My invite URL is\n<{0}>.\n\n'
                        'You\'ll need the **Manage Server** permission to add me to a server.'
                        .format(self.liara.invite_url))
 
