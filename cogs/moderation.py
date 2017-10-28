@@ -296,8 +296,7 @@ class Moderation:
             def predicate(message):
                 return message.author.id == member
 
-        messages = await channel.purge(limit=limit, check=predicate, reason='Member purge initiated by {0} ({0.id})'
-                                       .format(ctx.author))
+        messages = await channel.purge(limit=limit, check=predicate)
         messages = len(messages)
 
         plural = '' if messages == 1 else 's'
@@ -317,8 +316,7 @@ class Moderation:
         if channel is None:
             channel = ctx.channel
 
-        messages = await channel.purge(limit=limit, reason='Channel purge initiated by {0} ({0.id})'
-                                       .format(ctx.author))
+        messages = await channel.purge(limit=limit)
         messages = len(messages)
 
         plural = '' if messages == 1 else 's'
