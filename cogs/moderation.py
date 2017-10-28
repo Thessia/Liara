@@ -301,7 +301,7 @@ class Moderation:
 
         plural = '' if messages == 1 else 's'
 
-        await ctx.send('Purged {} message{}'.format(messages, plural), delete_after=10)
+        await ctx.send('Purged {} message{}.'.format(messages, plural), delete_after=10)
 
     @clean_cmd.command()
     @commands.guild_only()
@@ -311,6 +311,8 @@ class Moderation:
 
         * limit: How many messages to clean up
         * channel: The channel to delete the messages from (defaults to the current channel)
+
+        Arguments marked with * are optional.
         """
 
         if channel is None:
@@ -321,7 +323,7 @@ class Moderation:
 
         plural = '' if messages == 1 else 's'
 
-        await ctx.send('Purged {} message{}'.format(messages, plural), delete_after=10)
+        await ctx.send('Purged {} message{}.'.format(messages, plural), delete_after=10)
 
 
 def setup(liara):
