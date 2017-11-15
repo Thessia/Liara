@@ -287,14 +287,15 @@ class Core:
             if isinstance(exception, commands.BadArgument):
                 await context.send('Bad argument.')
                 await self.liara.send_command_help(context)
+            if isinstance(exception, commands.NoPrivateMessage):
+                # returning to avoid CheckFailure
+                return await context.send('That command is not available in direct messages.')
+            if isinstance(exception, commands.CommandOnCooldown):
+                await context.send('That command is cooling down.')
             if isinstance(exception, commands.CheckFailure):
                 await context.send('You do not have access to that command.')
             if isinstance(exception, commands.DisabledCommand):
                 await context.send('That command is disabled.')
-            if isinstance(exception, commands.NoPrivateMessage):
-                await context.send('That command is not available in direct messages.')
-            if isinstance(exception, commands.CommandOnCooldown):
-                await context.send('That command is cooling down.')
         except discord.HTTPException:
             pass
 
