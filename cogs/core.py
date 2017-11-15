@@ -13,7 +13,6 @@ import types
 import aiohttp
 import discord
 from discord.ext import commands
-from discord.ext.commands import errors as commands_errors
 
 from cogs.utils import checks
 from cogs.utils.runtime import CoreMode
@@ -261,7 +260,7 @@ class Core:
 
     async def on_command_error(self, context, exception):
         try:
-            if isinstance(exception, commands_errors.CommandInvokeError):
+            if isinstance(exception, commands.CommandInvokeError):
                 exception = exception.original
 
                 if isinstance(exception, discord.Forbidden):
@@ -281,19 +280,21 @@ class Core:
                         await context.send('An error occured while running that command.')
             if not self.informative_errors:  # everything beyond this point is purely informative
                 return
-            if isinstance(exception, commands_errors.CommandNotFound):
+            if isinstance(exception, commands.CommandNotFound):
                 return  # be nice to other bots
-            if isinstance(exception, commands_errors.MissingRequiredArgument):
+            if isinstance(exception, commands.MissingRequiredArgument):
                 return await self.liara.send_command_help(context)
-            if isinstance(exception, commands_errors.BadArgument):
+            if isinstance(exception, commands.BadArgument):
                 await context.send('Bad argument.')
                 await self.liara.send_command_help(context)
-            if isinstance(exception, commands_errors.CheckFailure):
+            if isinstance(exception, commands.CheckFailure):
                 await context.send('You do not have access to that command.')
-            if isinstance(exception, commands_errors.DisabledCommand):
+            if isinstance(exception, commands.DisabledCommand):
                 await context.send('That command is disabled.')
-            if isinstance(exception, commands_errors.NoPrivateMessage):
+            if isinstance(exception, commands.NoPrivateMessage):
                 await context.send('That command is not available in direct messages.')
+            if isinstance(exception, commands.CommandOnCooldown):
+                await context.send('That command is cooling down.')
         except discord.HTTPException:
             pass
 
