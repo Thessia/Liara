@@ -3,6 +3,7 @@ import __main__
 from cogs.utils.storage import RedisDict
 
 
+# noinspection PyPep8Naming
 class dataIO:
     @staticmethod
     def save_json(filename, content):
