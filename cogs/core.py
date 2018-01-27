@@ -1,22 +1,19 @@
 import asyncio
 import datetime
-import importlib
 import inspect
 import json
 import random
-import sys
 import textwrap
 import time
 import traceback
-import types
 
 import aiohttp
 import discord
 from discord.ext import commands
 
 from cogs.utils import checks
-from cogs.utils.storage import RedisCollection
 from cogs.utils.runtime import CoreMode
+from cogs.utils.storage import RedisCollection
 
 
 def reload_core(liara):
@@ -117,7 +114,8 @@ class Core:
             if key == 'roles':
                 roles = await self.settings.get('roles')
                 for guild in roles:
-                    self._set_guild_setting(int(guild), 'roles', roles[guild])
+                    self._set_guild_setting(int(guild), 'roles',
+                                            {k.rstrip('_role'): v for k, v in roles[guild].items()})
             # TODO: account for other shit
 
         # start the loop
@@ -144,10 +142,11 @@ class Core:
         if isinstance(message.author, discord.Member):
             if message.guild.owner == message.author:
                 return True
-            guild = str(message.guild.id)
             try:
-                roles = [x.name.lower() for x in message.author.roles]
-                if self.settings['roles'][guild]['admin_role'].lower() in roles:
+                roles = {x.name.lower() for x in message.author.roles}
+                settings = await self._get_guild_setting(message.guild.id, 'roles')
+                admin = settings.get('admin')
+                if admin in roles:
                     return True
             except KeyError or AttributeError:
                 pass
@@ -248,7 +247,30 @@ class Core:
                 error = '`{}` in command `{}`: ```py\n{}\n```'.format(type(exception).__name__,
                                                                       context.command.qualified_name,
                                                                       self.get_traceback(exception))
-                self.logger.error(error)
+
+                detail = {
+                    'guild_id': context.guild and context.guild.id,
+                    'user_id': context.author.id,
+                    'channel_id': context.channel.id,
+                    'command': {
+                        'name': context.command.name,
+                        'qualified_name': context.command.qualified_name,
+                        'hidden': context.command.hidden,
+                        'description': context.command.description,
+                        'aliases': context.command.aliases
+                    },
+                    'message': {
+                        'id': context.message.id,
+                        'content': context.message.clean_content
+                    },
+                    'exception': {
+                        'type': type(exception).__name__,
+                        'traceback': self.get_traceback(exception)
+                    }
+                }
+                self.logger.error('An exception occurred in the command {}:\n{}'
+                                  .format(context.command.qualified_name, self.get_traceback(exception)),
+                                  exc_info=detail)
                 if self.informative_errors:
                     if self.verbose_errors:
                         await context.send(error)
@@ -349,18 +371,15 @@ class Core:
 
         - role: The name of the role to use as the admin role
         """
-        server = str(ctx.message.guild.id)
-        if server not in self.settings['roles']:
-            self.settings['roles'][server] = {}
-            self.settings.commit('roles')
+        roles = await self._get_guild_setting(ctx.guild.id, 'roles', {})
         if role is not None:
-            self.settings['roles'][server]['admin_role'] = role
-            self.settings.commit('roles')
+            roles['admin'] = role
+            await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Admin role set to `{}` successfully.'.format(role))
         else:
-            if 'admin_role' in self.settings['roles'][server]:
-                self.settings['roles'][server].pop('admin_role')
-                self.settings.commit('roles')
+            if 'admin' in roles:
+                roles.pop('admin')
+                await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Admin role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set admin` for help.'
                            .format(ctx.prefix))
@@ -375,18 +394,15 @@ class Core:
 
         - role: The name of the role to use as the moderator role
         """
-        server = str(ctx.message.guild.id)
-        if server not in self.settings['roles']:
-            self.settings['roles'][server] = {}
-            self.settings.commit('roles')
+        roles = await self._get_guild_setting(ctx.guild.id, 'roles', {})
         if role is not None:
-            self.settings['roles'][server]['mod_role'] = role
-            self.settings.commit('roles')
+            roles['mod'] = role
+            await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Moderator role set to `{}` successfully.'.format(role))
         else:
-            if 'mod_role' in self.settings['roles'][server]:
-                self.settings['roles'][server].pop('mod_role')
-                self.settings.commit('roles')
+            if 'mod' in roles:
+                roles.pop('mod')
+                await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Moderator role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set moderator` for help.'
                            .format(ctx.prefix))
@@ -480,16 +496,15 @@ class Core:
 
         - name: The name of the cog to load
         """
-        cog_name = 'cogs.{}'.format(name)
 
-        if cog_name in self.liara.extensions:
+        if name in self.liara.extensions:
             return await ctx.send('Unable to load; the cog is already loaded.')
 
         try:
-            await self.load_cog(cog_name)
+            await self.load_cog(name)
             await ctx.send('`{}` loaded sucessfully.'.format(name))
         except Exception as e:
-            await ctx.send('Unable to load; the cog caused a `{}`:\n```py\n{}\n```' \
+            await ctx.send('Unable to load; the cog caused a `{}`:\n```py\n{}\n```'
                            .format(type(e).__name__, self.get_traceback(e)))
 
     @commands.command()
@@ -503,11 +518,11 @@ class Core:
             await ctx.send('Sorry, I can\'t let you do that. '
                            'If you want to install a custom loader, look into the documentation.')
             return
-        cog_name = 'cogs.{}'.format(name)
-        if cog_name in list(self.liara.extensions):
-            self.liara.unload_extension(cog_name)
-            self.settings['cogs'].remove(cog_name)
-            self.settings.commit('cogs')
+        if name in list(self.liara.extensions):
+            self.liara.unload_extension(name)
+            cogs = await self.settings.get('cogs')
+            cogs.remove(name)
+            await self.settings.set('cogs', cogs)
             await ctx.send('`{}` unloaded successfully.'.format(name))
         else:
             await ctx.send('Unable to unload; that cog isn\'t loaded.')
@@ -520,24 +535,11 @@ class Core:
             await self.liara.run_on_shard(None if self.liara.shard_id is None else 'all', reload_core)
             await ctx.send('Command dispatched, reloading core on all shards now.')
             return
-        cog_name = 'cogs.{}'.format(name)
-        if cog_name in list(self.liara.extensions):
+        if name in list(self.liara.extensions):
             msg = await ctx.send('`{}` reloading...'.format(name))
-            self.liara.unload_extension(cog_name)
-            self.settings['cogs'].remove(cog_name)
-            self.settings.commit('cogs')
-            await asyncio.sleep(2)
-            resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
-            if resp is not None:
-                _msg = '`{}` reloaded unsuccessfully on the main shard due to a `{}`:\n```py\n{}\n```\n' \
-                      .format(name, type(resp).__name__, self.get_traceback(resp))
-                _msg += 'Aborting reload on other shards...'
-                await msg.edit(content=_msg)
-                return
-            await msg.edit(content='`{}` reloaded successfully on main shard, waiting for others to catch up...'
-                           .format(name))
-            await asyncio.sleep(2)
-            if cog_name in list(self.liara.extensions):
+            self.liara.unload_extension(name)
+            await self.load_cog(name)
+            if name in list(self.liara.extensions):
                 await msg.edit(content='`{}` reloaded successfully.'.format(name))
             else:
                 await msg.edit(content='`{}` reloaded unsuccessfully on a non-main shard. Check your shard\'s logs for '

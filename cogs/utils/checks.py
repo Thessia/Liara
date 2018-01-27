@@ -7,8 +7,9 @@ def owner_check(ctx):
 
 
 async def role_check(ctx, _role):
-    roles = [x.name.lower() for x in ctx.author.roles]
-    role_settings = await ctx.bot.settings.get('guilds:{}'.format(ctx.guild.id), {})
+    roles = {x.name.lower() for x in ctx.author.roles}
+    settings = await ctx.bot.settings.get('guilds:{}'.format(ctx.guild.id), {})
+    role_settings = settings.get('roles', {})
     role = role_settings.get(_role)
     return role in roles
 
@@ -75,37 +76,37 @@ def is_not_main_shard():
 
 
 def mod_or_permissions(**permissions):
-    def predicate(ctx):
+    async def predicate(ctx):
         if owner_check(ctx):
             return True
         if not isinstance(ctx.author, discord.Member):
             return False
         if ctx.author == ctx.guild.owner:
             return True
-        if role_check(ctx, 'mod'):
+        if await role_check(ctx, 'mod'):
             return True
-        if role_check(ctx, 'admin'):
+        if await role_check(ctx, 'admin'):
             return True
         if permission_check(ctx, **permissions):
             return True
         return False
-    return commands.check(predicate)
+    return commands.check(predicate())
 
 
 def admin_or_permissions(**permissions):
-    def predicate(ctx):
+    async def predicate(ctx):
         if owner_check(ctx):
             return True
         if not isinstance(ctx.author, discord.Member):
             return False
         if ctx.author == ctx.guild.owner:
             return True
-        if role_check(ctx, 'admin'):
+        if await role_check(ctx, 'admin'):
             return True
         if permission_check(ctx, **permissions):
             return True
         return False
-    return commands.check(predicate)
+    return commands.check(predicate())
 
 
 def serverowner_or_permissions(**permissions):
