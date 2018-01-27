@@ -110,13 +110,21 @@ class Core:
 
         # migration
         keys = await self.settings.keys()
-        for key in keys:
-            if key == 'roles':
-                roles = await self.settings.get('roles')
-                for guild in roles:
-                    self._set_guild_setting(int(guild), 'roles',
-                                            {k.rstrip('_role'): v for k, v in roles[guild].items()})
-            # TODO: account for other shit
+        if 'roles' in keys:
+            roles = await self.settings.get('roles')
+            for guild in roles:
+                await self._set_guild_setting(
+                    int(guild), 'roles', {k.rstrip('_role'): v for k, v in roles[guild].items()}
+                )
+            await self.settings.delete('roles')
+        if 'ignores' in keys:
+            ignores = await self.settings.get('ignores')
+            for guild in ignores:
+                entry = []
+                [entry.append(int(x)) for x in ignores[guild]['ignored_channels']]
+                if ignores[guild]['server_ignore']:
+                    entry.append(int(guild))
+                await self._set_guild_setting(int(guild), 'ignores', entry)
 
         # start the loop
         self.loop = self.liara.loop.create_task(self._maintenance_loop())
@@ -153,12 +161,14 @@ class Core:
 
     async def _ignore_preconditions(self, message):
         if isinstance(message.author, discord.Member):
-            guild = str(message.guild.id)
-            if guild in self.settings['ignores']:
-                if self.settings['ignores'][guild]['server_ignore']:
-                    return False
-                if str(message.channel.id) in self.settings['ignores'][guild]['ignored_channels']:
-                    return False
+            ignores = await self._get_guild_setting(message.guild.id, 'ignores', [])
+
+            if message.author.id in ignores:
+                return False
+            if message.channel.id in ignores:
+                return False
+            if message.guild.id in ignores:
+                return False
 
     @staticmethod
     async def create_gist(content, filename='output.py'):
@@ -191,7 +201,7 @@ class Core:
             cogs.append(name)
             await self.settings.set('cogs', cogs)
 
-        self.logger.debug('Cog {} loaded sucessfully'.format(name))
+        self.logger.debug('Cog {} loaded successfully'.format(name))
 
     async def on_message(self, message):
         instance = await self.settings.get(self.liara.instance_id, {})
@@ -374,15 +384,14 @@ class Core:
         roles = await self._get_guild_setting(ctx.guild.id, 'roles', {})
         if role is not None:
             roles['admin'] = role
-            await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Admin role set to `{}` successfully.'.format(role))
         else:
             if 'admin' in roles:
                 roles.pop('admin')
-                await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Admin role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set admin` for help.'
                            .format(ctx.prefix))
+        await self._set_guild_setting(ctx.guild.id, 'roles', roles)
 
     @set_cmd.command()
     @commands.guild_only()
@@ -397,25 +406,19 @@ class Core:
         roles = await self._get_guild_setting(ctx.guild.id, 'roles', {})
         if role is not None:
             roles['mod'] = role
-            await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Moderator role set to `{}` successfully.'.format(role))
         else:
             if 'mod' in roles:
                 roles.pop('mod')
-                await self._set_guild_setting(ctx.guild.id, 'roles', roles)
             await ctx.send('Moderator role cleared.\n'
                            'If you didn\'t intend to do this, use `{}help set moderator` for help.'
                            .format(ctx.prefix))
-
-    def _ignore_check(self, ctx):
-        server = str(ctx.message.guild.id)
-        if server not in self.settings['ignores']:
-            self.settings['ignores'][server] = {'server_ignore': False, 'ignored_channels': []}
-            self.settings.commit('ignores')
+        await self._set_guild_setting(ctx.guild.id, 'roles', roles)
 
     @set_cmd.group(name='ignore', invoke_without_command=True)
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
+    @commands.guild_only()
     async def ignore_cmd(self, ctx):
         """Helps you ignore/unignore servers/channels."""
         await self.liara.send_command_help(ctx)
@@ -423,43 +426,46 @@ class Core:
     @ignore_cmd.command()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
+    @commands.guild_only()
     async def channel(self, ctx, state: bool):
         """Ignores/unignores the current channel.
 
         - state: Whether or not to ignore the current channel
         """
-        self._ignore_check(ctx)
-        channel = str(ctx.message.channel.id)
-        server = str(ctx.message.guild.id)
+        ignores = await self._get_guild_setting(ctx.guild.id, 'ignores', [])
+        channel = ctx.channel.id
+
         if state:
-            if channel not in self.settings['ignores'][server]['ignored_channels']:
-                self.settings['ignores'][server]['ignored_channels'].append(channel)
-                self.settings.commit('ignores')
+            if channel not in ignores:
+                ignores.append(channel)
             await ctx.send('Channel ignored.')
         else:
-            if channel in self.settings['ignores'][server]['ignored_channels']:
-                self.settings['ignores'][server]['ignored_channels'].remove(channel)
-                self.settings.commit('ignores')
+            if channel in ignores:
+                ignores.remove(channel)
             await ctx.send('Channel unignored.')
+        await self._set_guild_setting(ctx.guild.id, 'ignores', ignores)
 
     @ignore_cmd.command()
     @checks.admin_or_permissions()
     @checks.is_not_selfbot()
+    @commands.guild_only()
     async def server(self, ctx, state: bool):
         """Ignores/unignores the current server.
 
         - state: Whether or not to ignore the current server
         """
-        self._ignore_check(ctx)
-        server = str(ctx.message.guild.id)
+        ignores = await self._get_guild_setting(ctx.guild.id, 'ignores', [])
+        guild = ctx.guild.id
+
         if state:
-            self.settings['ignores'][server]['server_ignore'] = True
-            self.settings.commit('ignores')
+            if guild not in ignores:
+                ignores.append(guild)
             await ctx.send('Server ignored.')
         else:
-            self.settings['ignores'][server]['server_ignore'] = False
-            self.settings.commit('ignores')
+            if guild in ignores:
+                ignores.remove(guild)
             await ctx.send('Server unignored.')
+        await self._set_guild_setting(ctx.guild.id, 'ignores', ignores)
 
     async def halt_(self):
         self.ignore_db = True
@@ -486,7 +492,7 @@ class Core:
             message = await self.liara.wait_for('message', check=check)
             if message.content.lower() not in ['yes', 'yep', 'i\'m sure']:
                 return await ctx.send('Halt aborted.')
-        await ctx.send(':wave:')
+        await ctx.send('\N{WAVING HAND SIGN}')
         await self.halt_()
 
     @commands.command()
