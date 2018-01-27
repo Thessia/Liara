@@ -90,7 +90,7 @@ def mod_or_permissions(**permissions):
         if permission_check(ctx, **permissions):
             return True
         return False
-    return commands.check(predicate())
+    return commands.check(predicate)
 
 
 def admin_or_permissions(**permissions):
@@ -106,7 +106,7 @@ def admin_or_permissions(**permissions):
         if permission_check(ctx, **permissions):
             return True
         return False
-    return commands.check(predicate())
+    return commands.check(predicate)
 
 
 def serverowner_or_permissions(**permissions):

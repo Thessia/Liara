@@ -56,7 +56,7 @@ class Core:
             if cog not in list(self.liara.extensions):
                 # noinspection PyBroadException
                 try:
-                    self.load_cog(cog)
+                    await self.load_cog(cog)
                 except Exception:
                     cogs.remove(cog)
                     edited = True
@@ -152,7 +152,7 @@ class Core:
                 return True
             try:
                 roles = {x.name.lower() for x in message.author.roles}
-                settings = await self._get_guild_setting(message.guild.id, 'roles')
+                settings = await self._get_guild_setting(message.guild.id, 'roles', {})
                 admin = settings.get('admin')
                 if admin in roles:
                     return True
@@ -208,7 +208,7 @@ class Core:
         mode = instance.get('mode', CoreMode.down)
         if mode in (CoreMode.down, CoreMode.boot):
             return
-        if str(message.author.id) in self.liara.owners:  # *always* process owner commands
+        if message.author.id in self.liara.owners:  # *always* process owner commands
             await self.liara.process_commands(message)
             return
         if mode == CoreMode.maintenance:
@@ -224,8 +224,8 @@ class Core:
                     await self.liara.process_commands(message)
                     return
             except Exception:
-                self.logger.warning('Removed precondition override "{}", it was malfunctioning.'
-                                    .format(override.__name__))
+                self.logger.exception('Removed precondition override "{}", it was malfunctioning.'
+                                      .format(override.__name__))
                 self.global_preconditions_overrides.remove(override)
         # Preconditions
         for precondition in self.global_preconditions:
@@ -237,8 +237,8 @@ class Core:
                 if out is False:
                     return
             except Exception:
-                self.logger.warning('Removed precondition "{}", it was malfunctioning.'
-                                    .format(precondition.__name__))
+                self.logger.exception('Removed precondition "{}", it was malfunctioning.'
+                                      .format(precondition.__name__))
                 self.global_preconditions.remove(precondition)
 
         await self.liara.process_commands(message)
