@@ -15,11 +15,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils import checks
+from cogs.utils.storage import RedisCollection
 from cogs.utils.runtime import CoreMode
-
-
-def load_cog(liara, cog_name):  # this function is used to boss shards around (or rather, the main shard)
-    return liara.get_cog('Core').load_cog(cog_name)
 
 
 def reload_core(liara):
@@ -34,7 +31,7 @@ class Core:
         self.verbose_errors = False  # tracebacks?
         self.informative_errors = True  # info messages based on error
 
-        self.settings = liara.settings
+        self.settings = RedisCollection(self.liara.redis, 'settings')
         self.logger = self.liara.logger
         self.liara.loop.create_task(self._post())
         self.global_preconditions = [self._ignore_preconditions]  # preconditions to message processing
@@ -55,79 +52,92 @@ class Core:
     def __unload(self):
         self.loop.cancel()
 
+    async def _cog_loop(self):
+        cogs: list = await self.settings.get('cogs', [])
+        edited = False
+        for cog in cogs:
+            if cog not in list(self.liara.extensions):
+                # noinspection PyBroadException
+                try:
+                    self.load_cog(cog)
+                except Exception:
+                    cogs.remove(cog)
+                    edited = True
+                    self.logger.warning('{!r} could not be loaded. This message will not be shown again.'.format(cog))
+        if edited:
+            await self.settings.set('cogs', cogs)
+
+        for cog in list(self.liara.extensions):
+            if cog == 'cogs.core':
+                continue
+            if cog not in cogs:
+                self.liara.unload_extension(cog)
+
+    async def _get_guild_setting(self, guild_id, attribute, default=None):
+        guild = await self.settings.get('guilds:{}'.format(guild_id), {})
+        return guild.get(attribute, default)
+
+    async def _set_guild_setting(self, guild_id, attribute, value):
+        guild = await self.settings.get('guilds:{}'.format(guild_id), {})
+        guild[attribute] = value
+        await self.settings.set('guilds:{}'.format(guild_id), guild)
+
     async def _post(self):
         """Power-on self test. Beep boop."""
         self.liara.owners = []
-        if 'prefixes' in self.settings:
-            self.liara.command_prefix = self.settings['prefixes']
-            self.logger.info('{}\'s prefixes are: '.format(self.liara.name) + ', '.join(self.liara.command_prefix))
-        else:
-            prefix = random.randint(1, 2**8)
-            self.liara.command_prefix = self.settings['prefixes'] = [str(prefix)]
-            self.logger.info('{} hasn\'t been started before, so her prefix has been set to "{}".'
-                             .format(self.liara.name, prefix))
-        if 'cogs' in self.settings:
-            for cog in self.settings['cogs']:
-                if cog not in list(self.liara.extensions):
-                    # noinspection PyBroadException
-                    try:
-                        self.load_cog(cog)
-                    except Exception:
-                        self.settings['cogs'].remove(cog)
-                        self.logger.warning('{} could not be loaded. This message will not be shown again.'
-                                            .format(cog))
-        else:
-            self.settings['cogs'] = []
-        loader = 'cogs.{}'.format(self.settings.get('loader', 'core'))  # get the loader
-        if loader not in self.settings['cogs']:
-            self.settings['cogs'] = [loader]  # reset loaded cogs if loader changes
-        if 'roles' not in self.settings:
-            self.settings['roles'] = {}
-        if 'ignores' not in self.settings:
-            self.settings['ignores'] = {}
-        if 'owners' not in self.settings:
-            self.settings['owners'] = []
-        if self.liara.instance_id not in self.settings:
-            self.settings[self.liara.instance_id] = {'mode': CoreMode.boot}
+
+        # set prefixes
+        prefix = str(random.randint(1, 2**8))
+        prefixes = await self.settings.get('prefixes')
+        if prefixes is None:
+            prefixes = [prefix]
+            await self.settings.set('prefixes', prefixes)
+        self.liara.command_prefix = prefixes
+        self.logger.info('{}\'s prefixes are: {}'.format(self.liara.name, ', '.join(map(repr, prefixes))))
+
+        # Load cogs
+        await self._cog_loop()
+
+        # Mess with the instance's mode
+        instance = await self.settings.get(self.liara.instance_id, {'mode': CoreMode.boot})
         if not self.liara.ready:
-            if self.settings[self.liara.instance_id]['mode'] == CoreMode.up:
-                self.settings[self.liara.instance_id]['mode'] = CoreMode.boot
-        self.settings.commit('prefixes', 'cogs', 'roles', 'owners', 'ignores', self.liara.instance_id)  # save stuff
+            if instance['mode'] == CoreMode.up:
+                instance['mode'] = CoreMode.boot
+                await self.settings.set(self.liara.instance_id, instance)
+
         await self.liara.wait_until_ready()
         self.liara.ready = True
-        if self.settings[self.liara.instance_id]['mode'] == CoreMode.boot:
-            self.settings[self.liara.instance_id]['mode'] = CoreMode.up
-        self.settings.commit(self.liara.instance_id)  # save the mode
-        self.loop = self.liara.loop.create_task(self._maintenance_loop())  # starts the loop
+        if instance['mode'] == CoreMode.boot:
+            instance['mode'] = CoreMode.up
+            await self.settings.set(self.liara.instance_id, instance)
+
+        # migration
+        keys = await self.settings.keys()
+        for key in keys:
+            if key == 'roles':
+                roles = await self.settings.get('roles')
+                for guild in roles:
+                    self._set_guild_setting(int(guild), 'roles', roles[guild])
+            # TODO: account for other shit
+
+        # start the loop
+        self.loop = self.liara.loop.create_task(self._maintenance_loop())
 
     async def _maintenance_loop(self):
+        app_info = await self.liara.application_info()
         while True:
-            if not self.ignore_db:  # if you wanna use something else for database management, just set this to false
-                # Loading cogs
-                for cog in self.settings['cogs']:
-                    if cog not in list(self.liara.extensions):
-                        # noinspection PyBroadException
-                        try:
-                            self.load_cog(cog)
-                        except Exception:
-                            self.settings['cogs'].remove(cog)  # something went wrong here
-                            self.settings.commit('cogs')
-                            self.logger.warning('{} could not be loaded. This message will not be shown again.'
-                                                .format(cog))
-                # Unloading cogs
-                for cog in list(self.liara.extensions):
-                    if cog not in self.settings['cogs']:
-                        self.liara.unload_extension(cog)
+            if not self.ignore_db:
+                # Loading cogs / Unloading cogs
+                await self._cog_loop()
                 # Prefix changing
-                self.liara.command_prefix = self.settings['prefixes']
+                self.liara.command_prefix = await self.settings.get('prefixes')
                 # Owner checks
-                try:
-                    if str(self.liara.owner.id) not in self.settings['owners']:
-                        self.settings['owners'].append(str(self.liara.owner.id))
-                        self.settings.commit('owners')
-                except AttributeError:
-                    pass
-                self.liara.owners = self.settings['owners']
+                owners = await self.settings.get('owners', [])
+                owners = list(map(int, owners))
+                if app_info.owner.id not in owners:
+                    owners.append(app_info.owner.id)
+                    await self.settings.set('owners', owners)
+                self.liara.owners = owners
             await asyncio.sleep(1)
 
     async def _ignore_overrides(self, message):
@@ -137,7 +147,7 @@ class Core:
             guild = str(message.guild.id)
             try:
                 roles = [x.name.lower() for x in message.author.roles]
-                if self.liara.settings['roles'][guild]['admin_role'].lower() in roles:
+                if self.settings['roles'][guild]['admin_role'].lower() in roles:
                     return True
             except KeyError or AttributeError:
                 pass
@@ -169,58 +179,24 @@ class Core:
 
     # make IDEA stop acting like a baby
     # noinspection PyShadowingBuiltins
-    def load_cog(self, name):
+    async def load_cog(self, name):
         self.logger.debug('Attempting to load cog {}'.format(name))
 
         if name in self.liara.extensions:
             return
 
-        redis_name = 'cogfiles.{}'.format(name)
+        self.liara.load_extension(name)
 
-        try:
-            if self.liara.shard_id is None or self.liara.shard_id == 0 and not name.startswith('pkg'):
-                self.logger.debug('Loading cog {} from disk into Redis'.format(name))
-                module = importlib.import_module(name)
-                importlib.reload(module)
-                del sys.modules[name]
-                if hasattr(module, '__file__'):
-                    path = module.__file__
-                    with open(path, 'rb') as f:
-                        self.liara.redis.set('cogfiles.{}'.format(name), f.read())
-                else:
-                    raise discord.ClientException('Extension is not a file')
-                del module
-        except ImportError as e:
-            self.logger.error('Failed loading cog {} from disk, falling back to Redis. The following traceback '
-                              'describes why the load from disk failed:'
-                              '\n{}'.format(name, self.get_traceback(e)))
-            if not self.liara.redis.exists(redis_name):
-                raise e
-
-        file_contents = self.liara.redis.get(redis_name)
-        if file_contents is None:
-            raise IOError('Redis appears to be improperly configured')
-        # shut the fuck up, IDEA
-        # noinspection PyUnresolvedReferences
-        module = types.ModuleType(name)
-        code = compile(file_contents, name, 'exec')
-        exec(code, module.__dict__)
-
-        if not hasattr(module, 'setup'):
-            del module
-            raise discord.ClientException('Extension does not have a setup function')
-
-        module.setup(self.liara)
-        self.liara.extensions[name] = module
-        if name not in self.settings['cogs']:
-            self.settings['cogs'].append(name)
-            self.settings.commit('cogs')
-        sys.modules[name] = module
+        cogs = await self.settings.get('cogs')
+        if name not in cogs:
+            cogs.append(name)
+            await self.settings.set('cogs', cogs)
 
         self.logger.debug('Cog {} loaded sucessfully'.format(name))
 
     async def on_message(self, message):
-        mode = self.settings.get(self.liara.instance_id, {}).get('mode', CoreMode.down)
+        instance = await self.settings.get(self.liara.instance_id, {})
+        mode = instance.get('mode', CoreMode.down)
         if mode in (CoreMode.down, CoreMode.boot):
             return
         if str(message.author.id) in self.liara.owners:  # *always* process owner commands
@@ -312,15 +288,12 @@ class Core:
 
         - prefixes: A list of prefixes to use
         """
-        prefixes = list(prefixes)
-
         if not prefixes:
             await self.liara.send_command_help(ctx)
             return
 
         self.liara.command_prefix = prefixes
-        self.settings['prefixes'] = prefixes
-        self.settings.commit('prefixes')
+        self.settings.set('prefixes', prefixes)
         await ctx.send('Prefix(es) set.')
 
     @set_cmd.command()
@@ -360,8 +333,7 @@ class Core:
 
         - owners: A list of owners to use
         """
-        self.settings['owners'] = [str(x.id) for x in list(owners)]
-        self.settings.commit('owners')
+        await self.settings.set('owners', [x.id for x in list(owners)])
         if len(list(owners)) == 1:
             await ctx.send('Owner set.')
         else:
@@ -509,18 +481,16 @@ class Core:
         - name: The name of the cog to load
         """
         cog_name = 'cogs.{}'.format(name)
-        if cog_name not in list(self.liara.extensions):
-            msg = 'Dispatching command to the root shard...'
-            message = await ctx.send(msg)
-            resp = await self.liara.run_on_shard(None if self.liara.shard_id is None else 0, load_cog, cog_name)
-            if resp is None:
-                msg = '`{}` loaded sucessfully.'.format(name)
-            else:
-                msg = 'Unable to load; the cog caused a `{}`:\n```py\n{}\n```'\
-                      .format(type(resp).__name__, self.get_traceback(resp))
-            await message.edit(content=msg)
-        else:
-            await ctx.send('Unable to load; that cog is already loaded.')
+
+        if cog_name in self.liara.extensions:
+            return await ctx.send('Unable to load; the cog is already loaded.')
+
+        try:
+            await self.load_cog(cog_name)
+            await ctx.send('`{}` loaded sucessfully.'.format(name))
+        except Exception as e:
+            await ctx.send('Unable to load; the cog caused a `{}`:\n```py\n{}\n```' \
+                           .format(type(e).__name__, self.get_traceback(e)))
 
     @commands.command()
     @checks.is_owner()

@@ -11,15 +11,16 @@ import sys
 import threading
 import time
 import uuid
+import discord
 from concurrent.futures import TimeoutError, ThreadPoolExecutor
 from hashlib import sha256
 
 import dill
-import redis
+import aredis
 from discord import utils as dutils
 from discord.ext import commands
 
-from cogs.utils.storage import RedisDict
+from cogs.utils.storage import RedisCollection
 
 
 class NoResponse:
@@ -50,7 +51,7 @@ def create_bot(auto_shard: bool):
                                                            self.args.shard_count).encode()).hexdigest()
             self.logger = logging.getLogger('liara')
             self.logger.info('Liara is booting, please wait...')
-            self.settings = RedisDict('settings', self.redis)
+            self.settings = RedisCollection(self.redis, 'settings')
             self.owner = None  # this gets updated in on_ready
             self.invite_url = None  # this too
             self.send_cmd_help = send_cmd_help
@@ -61,16 +62,23 @@ def create_bot(auto_shard: bool):
             self._pubsub_futures = {}  # futures temporarily stored here
             self._pubsub_broadcast_cache = {}
             self._pubsub_pool = ThreadPoolExecutor(max_workers=1)
-            threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
-            threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
+            self.t1 = threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True)
             super().__init__(*args, **kwargs)
-            try:
-                loader = self.settings['loader']
-                self.load_extension('cogs.' + loader)
+
+            self.ready = False  # we expect the loader to set this once ready
+
+        async def init(self):
+            """Initializes the bot."""
+            # pubsub
+            self.t1.start()
+            # self.loop.create_task(self._pubsub_loop())
+
+            # load the core cog
+            default = 'cogs.core'
+            loader = await self.settings.get('loader', default)
+            self.load_extension(loader)
+            if loader != default:
                 self.logger.warning('Using third-party loader and core cog, {0}.'.format(loader))
-            except KeyError:
-                self.load_extension('cogs.core')
-            self.ready = False
 
         def _process_pubsub_event(self, event):
             _id = self.pubsub_id
@@ -129,11 +137,11 @@ def create_bot(auto_shard: bool):
             except dill.UnpicklingError:
                 return
 
-        def _pubsub_loop(self):
+        async def _pubsub_loop(self):
             pubsub = self.redis.pubsub()
             _id = self.pubsub_id
             pubsub.subscribe(_id)
-            for event in pubsub.listen():
+            async for event in pubsub.listen():
                 self._pubsub_pool.submit(self._process_pubsub_event, event)
 
         def _pubsub_cache_loop(self):
@@ -170,8 +178,8 @@ def create_bot(auto_shard: bool):
                 return False
 
         async def on_ready(self):
-            self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
-                           .format(self.user))
+            await self.redis.set('__info__', 'This database is used by the Liara discord bot, logged in as user {0}.'
+                                 .format(self.user))
             self.logger.info('Liara is connected!')
             self.logger.info('Logged in as {0}.'.format(self.user))
             if self.shard_id is not None:
@@ -368,11 +376,7 @@ if __name__ == '__main__':
         cargs.shard_id -= 1
 
     # Redis connection attempt
-    try:
-        redis_conn = redis.StrictRedis(host=cargs.host, port=cargs.port, db=cargs.db, password=cargs.password)
-    except redis.ConnectionError:
-        logger.critical('Unable to connect to Redis, exiting...')
-        exit(2)
+    redis_conn = aredis.StrictRedis(host=cargs.host, port=cargs.port, db=cargs.db, password=cargs.password)
 
     # sharding logic
     unsharded = True
@@ -392,6 +396,8 @@ if __name__ == '__main__':
                       redis=redis_conn, cargs=cargs, test=cargs.test, name=cargs.name)  # liara-specific args
 
     async def run_bot():
+        await liara.redis.ping()
+        await liara.init()
         await liara.login(cargs.token, bot=not (cargs.selfbot or userbot))
         await liara.connect()
 
@@ -399,22 +405,23 @@ if __name__ == '__main__':
     def run_app():
         loop = asyncio.get_event_loop()
         exit_code = 0
-        if cargs.test:
-            logger.info('Liara is in test mode, flushing database...')
-            liara.redis.flushdb()
         try:
             loop.run_until_complete(run_bot())
         except KeyboardInterrupt:
             logger.info('Shutting down threads and quitting. Thank you for using Liara.')
             loop.run_until_complete(liara.logout())
+        except aredis.ConnectionError:
+            exit_code = 2
+            logger.critical('Unable to connect to Redis.')
+        except discord.LoginFailure:
+            exit_code = 3
+            logger.critical('Discord token is not valid.')
         except Exception:
             exit_code = 1
             logger.exception('Exception while running Liara.')
             loop.run_until_complete(liara.logout())
         finally:
             loop.close()
-            if cargs.test:
-                liara.redis.flushdb()
             return exit_code
 
     exit(run_app())

@@ -3,13 +3,13 @@ from discord.ext import commands
 
 
 def owner_check(ctx):
-    return str(ctx.author.id) in ctx.bot.owners
+    return ctx.author.id in ctx.bot.owners
 
 
-def role_check(ctx, _role):
+async def role_check(ctx, _role):
     roles = [x.name.lower() for x in ctx.author.roles]
-    settings = ctx.bot.settings['roles']
-    role = settings.get(str(ctx.guild.id), {}).get('{}_role'.format(_role))
+    role_settings = await ctx.bot.settings.get('guilds:{}'.format(ctx.guild.id), {})
+    role = role_settings.get(_role)
     return role in roles
 
 
