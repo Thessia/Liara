@@ -125,6 +125,7 @@ class Core:
                 if ignores[guild]['server_ignore']:
                     entry.append(int(guild))
                 await self._set_guild_setting(int(guild), 'ignores', entry)
+            await self.settings.delete('ignores')
 
         # start the loop
         self.loop = self.liara.loop.create_task(self._maintenance_loop())
