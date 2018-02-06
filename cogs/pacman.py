@@ -1,15 +1,14 @@
 import asyncio
-import subprocess
-import os
-
 import copy
-from cogs.utils import checks
-from cogs.utils.storage import RedisCollection
+import os
 import shlex
+import subprocess
 import sys
 
-
 from discord.ext import commands
+
+from cogs.utils import checks
+from cogs.utils.storage import RedisCollection
 
 
 class Pacman:
