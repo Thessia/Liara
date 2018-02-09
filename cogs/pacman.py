@@ -131,6 +131,7 @@ class Pacman:
         async with ctx.typing():
             output = await self._git_clone(repo, name)
         await ctx.send('```\n{}\n```'.format(output))
+        self._config_path()
 
     @pacman.command()
     @checks.is_owner()
