@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import os
 import shlex
 import subprocess
@@ -19,7 +18,7 @@ class Pacman:
 
         self.db = RedisCollection(liara.redis, 'liara.pacman')
 
-        self.env = copy.copy(os.environ)
+        self.env = dict(os.environ)
         self.created_ssh_agent = False
 
         self.loop.create_task(self._setup_dot_exe())
