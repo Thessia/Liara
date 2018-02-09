@@ -197,7 +197,7 @@ class Core:
 
         self.liara.load_extension(name)
 
-        cogs = await self.settings.get('cogs')
+        cogs = await self.settings.get('cogs', [])
         if name not in cogs:
             cogs.append(name)
             await self.settings.set('cogs', cogs)
@@ -326,7 +326,7 @@ class Core:
             return
 
         self.liara.command_prefix = prefixes
-        self.settings.set('prefixes', prefixes)
+        await self.settings.set('prefixes', prefixes)
         await ctx.send('Prefix(es) set.')
 
     @set_cmd.command()
