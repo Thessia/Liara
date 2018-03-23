@@ -17,7 +17,7 @@ class Sentry:
         self.client = None
         self.client_lock = Lock(loop=self.liara.loop)
 
-    async def on_command_error(self, exception, context):
+    async def on_command_error(self, context, exception):
         # raven setup
         if self.client is None:
             self.client = SentryClient(site=self.liara.user.id)
