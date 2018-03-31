@@ -1,5 +1,6 @@
 from asyncio import Lock
 
+import discord
 from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
 from raven import Client as SentryClient
@@ -38,6 +39,9 @@ class Sentry:
             return
 
         _exception = exception.original
+        if isinstance(_exception, discord.Forbidden):
+            return  # not my problem
+
         message = context.message
         async with self.client_lock:
             self.client.user_context({'id': message.author.id})
