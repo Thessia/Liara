@@ -80,6 +80,22 @@ class Pacman:
         out, _ = await proc.communicate()
         return out.decode().strip()
 
+    async def _git_fetch(self, wd='.'):
+        if wd != '.':
+            wd = self._join_pacman_relative(wd)
+        else:
+            wd = os.getcwd()
+
+        return await self._run_command('git fetch', wd)
+
+    async def _git_log_changes_upstream(self, wd='.'):
+        if wd != '.':
+            wd = self._join_pacman_relative(wd)
+        else:
+            wd = os.getcwd()
+
+        return await self._run_command('git log --oneline HEAD..ORIG_HEAD', wd)
+
     async def _git_pull(self, wd='.'):
         if wd != '.':
             wd = self._join_pacman_relative(wd)
@@ -142,7 +158,11 @@ class Pacman:
         - repo: The repository to update.
         """
         async with ctx.typing():
-            output = await self._git_pull(repo)
+            output = ''
+            await self._git_fetch(repo)
+            output += await self._git_log_changes_upstream(repo)
+            output += '\n'
+            output += await self._git_pull(repo)
         await ctx.send('```\n{}\n```'.format(output))
 
     @pacman.command()
@@ -152,11 +172,9 @@ class Pacman:
         wd = self._join_pacman_relative()
         repos = [x for x in os.listdir(wd) if os.path.isdir(self._join_pacman_relative(x))]
 
-        await ctx.trigger_typing()
         for repo in repos:
-            out = await self._git_pull(repo)
-            await ctx.send('Repo `{}` updated:\n```\n{}\n```'.format(repo, out))
-            await ctx.trigger_typing()
+            ctx: commands.Context
+            await ctx.invoke(self.update, ctx, repo)
         await ctx.send('Updated all repositories.')
 
 
