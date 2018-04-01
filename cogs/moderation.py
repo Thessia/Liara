@@ -54,8 +54,8 @@ class Moderation:
         embed.description = '**Display name**: {0.display_name}\n**ID**: {0.id}\n[Avatar]({1})'\
                             .format(member, avatar_url)
 
-        if member.game is not None:
-            embed.description += '\n**Game**: {}'.format(member.game.__str__())  # I'm done fixing this
+        if isinstance(member.activity, discord.Game):
+            embed.description += '\n**Game**: {}'.format(member.activity)
 
         join_delta = datetime.datetime.utcnow() - member.joined_at
         created_delta = datetime.datetime.utcnow() - member.created_at
@@ -296,6 +296,7 @@ class Moderation:
             def predicate(message):
                 return message.author.id == member
 
+        # noinspection PyUnresolvedReferences
         messages = await channel.purge(limit=limit, check=predicate)
         messages = len(messages)
 
@@ -318,6 +319,7 @@ class Moderation:
         if channel is None:
             channel = ctx.channel
 
+        # noinspection PyUnresolvedReferences
         messages = await channel.purge(limit=limit)
         messages = len(messages)
 
