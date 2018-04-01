@@ -163,7 +163,7 @@ class Pacman:
             output += await self._git_log_changes_upstream(repo)
             output += '\n'
             output += await self._git_pull(repo)
-        await ctx.send('```\n{}\n```'.format(output))
+        await ctx.send('```\n{}\n```'.format(output.strip()))
 
     @pacman.command()
     @checks.is_owner()
@@ -174,7 +174,7 @@ class Pacman:
 
         for repo in repos:
             ctx: commands.Context
-            await ctx.invoke(self.update, ctx, repo)
+            await ctx.invoke(self.update, repo)
         await ctx.send('Updated all repositories.')
 
 
